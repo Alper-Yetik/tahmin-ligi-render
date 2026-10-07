@@ -119,7 +119,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
 
   <form id="loginbox" class="panel" hidden>
     <h2 style="font-size:1.4rem">Adını yaz</h2>
-    <p class="sub" style="margin:0">Tahminlerin ve puanın bu isimle görünür. Yazdığın ad bu cihaza kilitlenir, başkası aynı adı kullanamaz.</p>
+    <p class="sub" style="margin:0">Tahminlerin ve puanın bu isimle görünür. Her gün aynı ismi yaz.</p>
     <div class="fields">
       <label for="loginNick">Adın<input id="loginNick" maxlength="24" autocomplete="nickname"></label>
     </div>
@@ -155,8 +155,6 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   var EXACT=5, DIFF=3, SIDE=2;
   var ERR={
     invalid_nick:"Ad 2 ile 24 karakter arasında olmalı.",
-    invalid_token:"Tarayıcın bu adı kaydedemedi. Sayfayı yenileyip tekrar dene.",
-    name_taken:"Bu ad zaten alınmış. Başka bir ad yaz.",
     unknown_player:"Adın kayıtlı değil, önce adını yaz.",
     invalid_score:"Skor 0 ile 30 arasında olmalı.",
     no_match:"Bu maç artık yok.",
@@ -365,20 +363,14 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   }
 
   /* ---------- işlemler ---------- */
-  function newToken(){
-    var a=new Uint8Array(24);crypto.getRandomValues(a);
-    return Array.prototype.map.call(a,function(b){return ("0"+b.toString(16)).slice(-2)}).join("");
-  }
   async function doLogin(e){
     e.preventDefault();
     var nick=el("loginNick").value.trim(), msg=el("loginMsg"), btn=el("loginBtn");
     btn.disabled=true;msg.className="state";msg.textContent="Kaydediliyor…";
     try{
-      var tokens=lsGet("tl_tokens")||{}, tk=tokens[nick.toLowerCase()]||newToken();
-      var r=await rpc("player_login",{p_nick:nick,p_token:tk});
+      var r=await rpc("player_login",{p_nick:nick});
       if(!r.ok){msg.className="state warn";msg.textContent=ERR[r.error]||"Kaydedilemedi.";btn.disabled=false;return}
-      tokens[r.nick.toLowerCase()]=tk;lsSet("tl_tokens",tokens);
-      auth={id:r.id,nick:r.nick,token:tk};lsSet("tl_auth",auth);msg.textContent="";
+      auth={id:r.id,nick:r.nick};lsSet("tl_auth",auth);msg.textContent="";
       await load();render();
     }catch(err){msg.className="state warn";msg.textContent="Bağlantı hatası, tekrar dene."}
     btn.disabled=false;
@@ -389,11 +381,11 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     var d=drafts[mid]||{}, h=parseInt(d.h,10), a=parseInt(d.a,10);
     if(isNaN(h)||isNaN(a)||h<0||a<0||h>30||a>30)return;
     try{
-      var r=await rpc("submit_prediction",{p_nick:auth.nick,p_token:auth.token,p_match:mid,p_h:h,p_a:a});
+      var r=await rpc("submit_prediction",{p_nick:auth.nick,p_match:mid,p_h:h,p_a:a});
       if(r.ok){delete drafts[mid];delete flash[mid]}
       else{
         flash[mid]=ERR[r.error]||"Kaydedilemedi.";
-        if(r.error==="unknown_player"||r.error==="name_taken"){auth=null;lsDel("tl_auth");flash[mid]="Bu ad bu cihaza ait değil. Başka bir ad yaz."}
+        if(r.error==="unknown_player"){auth=null;lsDel("tl_auth");flash[mid]="Adın bulunamadı, adını tekrar yaz."}
       }
     }catch(e){flash[mid]="Bağlantı hatası, tekrar dene."}
     await load();render();
@@ -463,7 +455,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   setInterval(function(){var a=document.activeElement;if(BASE&&KEY&&!document.hidden&&!(a&&a.tagName==="INPUT"))load()},30000);
 
   /* ---------- başlangıç ---------- */
-  var saved=lsGet("tl_auth");if(saved&&saved.id&&saved.nick&&saved.token)auth={id:saved.id,nick:saved.nick,token:saved.token};
+  var saved=lsGet("tl_auth");if(saved&&saved.id&&saved.nick)auth={id:saved.id,nick:saved.nick};
   var sa=ssGet("tl_admin");if(sa)adminPass=sa;
   render();
   if(BASE&&KEY)load();else loading=false,render();

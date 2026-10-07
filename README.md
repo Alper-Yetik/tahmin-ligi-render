@@ -33,4 +33,4 @@ Render ücretsiz **Static Site** için kodu bir GitHub deposundan çeker.
 
 ## Notlar
 - Ücretsiz Supabase projeleri 1 hafta hiç kullanılmazsa duraklatılır; panelden tek tıkla açılır.
-- Oyuncular sadece adını yazar; ad ilk yazıldığı tarayıcıya kilitlenir, başkası aynı adı kullanamaz. Her maça tek tahmin; kilitleme ve maç başlangıç kontrolü sunucuda yapılır.
+- Oyuncular sadece adını yazar, PIN yoktur. Her maça tek tahmin; kilitleme ve maç başlangıç kontrolü sunucuda yapılır.
