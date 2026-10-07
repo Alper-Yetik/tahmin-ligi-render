@@ -18,7 +18,7 @@ create table if not exists matches (
 create table if not exists players (
   id uuid primary key default gen_random_uuid(),
   nick text not null,
-  pin_hash text not null,
+  pin_hash text,
   failed int not null default 0,
   locked_until timestamptz,
   created_at timestamptz not null default now()
@@ -58,37 +58,6 @@ create or replace view players_public as select id, nick from players;
 grant select on players_public to anon, authenticated;
 
 -- ---------- Yardımcı fonksiyonlar (dışarıdan çağrılamaz) ----------
-create or replace function auth_player(p_nick text, p_pin text, p_create boolean)
-returns jsonb language plpgsql security definer set search_path = public, extensions as $$
-declare
-  r players%rowtype;
-  n text := btrim(coalesce(p_nick, ''));
-  nf int;
-begin
-  if char_length(n) < 2 or char_length(n) > 24 then return jsonb_build_object('error', 'invalid_nick'); end if;
-  if p_pin is null or char_length(p_pin) < 4 or char_length(p_pin) > 32 then return jsonb_build_object('error', 'invalid_pin'); end if;
-  select * into r from players where lower(nick) = lower(n);
-  if not found then
-    if not p_create then return jsonb_build_object('error', 'unknown_player'); end if;
-    insert into players (nick, pin_hash) values (n, crypt(p_pin, gen_salt('bf'))) returning * into r;
-    return jsonb_build_object('id', r.id, 'nick', r.nick, 'created', true);
-  end if;
-  if r.locked_until is not null and r.locked_until > now() then return jsonb_build_object('error', 'locked'); end if;
-  if r.pin_hash = crypt(p_pin, r.pin_hash) then
-    if r.failed > 0 or r.locked_until is not null then
-      update players set failed = 0, locked_until = null where id = r.id;
-    end if;
-    return jsonb_build_object('id', r.id, 'nick', r.nick, 'created', false);
-  end if;
-  nf := r.failed + 1;
-  if nf >= 5 then
-    update players set failed = 0, locked_until = now() + interval '15 minutes' where id = r.id;
-  else
-    update players set failed = nf where id = r.id;
-  end if;
-  return jsonb_build_object('error', 'wrong_pin');
-end $$;
-
 create or replace function admin_ok(p_admin text)
 returns boolean language plpgsql security definer set search_path = public, extensions as $$
 declare h text;
@@ -99,38 +68,44 @@ begin
   return false;
 end $$;
 
-revoke execute on function auth_player(text, text, boolean) from public, anon, authenticated;
 revoke execute on function admin_ok(text) from public, anon, authenticated;
 
 -- ---------- Oyuncu fonksiyonları ----------
--- Takma ad yoksa kaydeder, varsa PIN'i doğrular.
-create or replace function player_login(p_nick text, p_pin text)
+-- PIN yok: ad yazan herkes oyuncu olur. Ad yoksa kaydeder, varsa aynı oyuncuyu döndürür.
+create or replace function player_login(p_nick text)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
-declare a jsonb;
+declare
+  n text := btrim(coalesce(p_nick, ''));
+  r players%rowtype;
+  made boolean := false;
 begin
-  a := auth_player(p_nick, p_pin, true);
-  if a->>'error' is not null then return jsonb_build_object('ok', false, 'error', a->>'error'); end if;
-  return jsonb_build_object('ok', true, 'id', a->>'id', 'nick', a->>'nick', 'created', (a->>'created')::boolean);
+  if char_length(n) < 2 or char_length(n) > 24 then return jsonb_build_object('ok', false, 'error', 'invalid_nick'); end if;
+  select * into r from players where lower(nick) = lower(n);
+  if not found then
+    insert into players (nick) values (n) on conflict ((lower(nick))) do nothing;
+    select * into r from players where lower(nick) = lower(n);
+    made := true;
+  end if;
+  return jsonb_build_object('ok', true, 'id', r.id, 'nick', r.nick, 'created', made);
 end $$;
 
 -- Maç başlamadan bir kez tahmin girilir. Değiştirilemez.
-create or replace function submit_prediction(p_nick text, p_pin text, p_match text, p_h int, p_a int)
+create or replace function submit_prediction(p_nick text, p_match text, p_h int, p_a int)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare
-  a jsonb;
+  pid uuid;
   k timestamptz;
   n int;
 begin
-  a := auth_player(p_nick, p_pin, false);
-  if a->>'error' is not null then return jsonb_build_object('ok', false, 'error', a->>'error'); end if;
+  select id into pid from players where lower(nick) = lower(btrim(coalesce(p_nick, '')));
+  if pid is null then return jsonb_build_object('ok', false, 'error', 'unknown_player'); end if;
   if p_h is null or p_a is null or p_h not between 0 and 30 or p_a not between 0 and 30 then
     return jsonb_build_object('ok', false, 'error', 'invalid_score');
   end if;
   select kickoff into k from matches where id = p_match;
   if not found then return jsonb_build_object('ok', false, 'error', 'no_match'); end if;
   if k <= now() then return jsonb_build_object('ok', false, 'error', 'closed'); end if;
-  insert into predictions (match_id, player_id, h, a)
-  values (p_match, (a->>'id')::uuid, p_h, p_a)
+  insert into predictions (match_id, player_id, h, a) values (p_match, pid, p_h, p_a)
   on conflict (match_id, player_id) do nothing;
   get diagnostics n = row_count;
   if n = 0 then return jsonb_build_object('ok', false, 'error', 'already_predicted'); end if;
@@ -172,8 +147,8 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
-grant execute on function player_login(text, text) to anon, authenticated;
-grant execute on function submit_prediction(text, text, text, int, int) to anon, authenticated;
+grant execute on function player_login(text) to anon, authenticated;
+grant execute on function submit_prediction(text, text, int, int) to anon, authenticated;
 grant execute on function admin_check(text) to anon, authenticated;
 grant execute on function admin_upsert_match(text, text, text, text, text, timestamptz) to anon, authenticated;
 grant execute on function admin_set_result(text, text, int, int) to anon, authenticated;

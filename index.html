@@ -118,13 +118,12 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   </header>
 
   <form id="loginbox" class="panel" hidden>
-    <h2 style="font-size:1.4rem">Giriş yap veya kayıt ol</h2>
-    <p class="sub" style="margin:0">Takma adını ve en az 4 karakterlik bir PIN seç. Bu takma ad ilk kez kullanılıyorsa seni kaydeder, daha önce kullandıysan PIN'inle girersin. PIN'i unutma, sıfırlanamaz.</p>
+    <h2 style="font-size:1.4rem">Adını yaz</h2>
+    <p class="sub" style="margin:0">Tahminlerin ve puanın bu isimle görünür. Her gün aynı ismi yaz.</p>
     <div class="fields">
-      <label for="loginNick">Takma ad<input id="loginNick" maxlength="24" autocomplete="username"></label>
-      <label for="loginPin">PIN<input id="loginPin" type="password" maxlength="32" autocomplete="current-password"></label>
+      <label for="loginNick">Adın<input id="loginNick" maxlength="24" autocomplete="nickname"></label>
     </div>
-    <div class="foot"><span class="state" id="loginMsg"></span><button class="btn" type="submit" id="loginBtn">Devam et</button></div>
+    <div class="foot"><span class="state" id="loginMsg"></span><button class="btn" type="submit" id="loginBtn">Kaydet</button></div>
   </form>
 
   <form id="adminbox" class="panel" hidden>
@@ -155,11 +154,8 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   var COMPS=["Süper Lig","Şampiyonlar Ligi","Avrupa Ligi","Konferans Ligi","Türkiye Kupası","Süper Kupa"];
   var EXACT=5, DIFF=3, SIDE=2;
   var ERR={
-    invalid_nick:"Takma ad 2 ile 24 karakter arasında olmalı.",
-    invalid_pin:"PIN en az 4 karakter olmalı.",
-    wrong_pin:"PIN yanlış.",
-    locked:"Çok fazla yanlış deneme. 15 dakika sonra tekrar dene.",
-    unknown_player:"Bu takma ad kayıtlı değil. Önce giriş yapıp kaydol.",
+    invalid_nick:"Ad 2 ile 24 karakter arasında olmalı.",
+    unknown_player:"Adın kayıtlı değil, önce adını yaz.",
     invalid_score:"Skor 0 ile 30 arasında olmalı.",
     no_match:"Bu maç artık yok.",
     closed:"Maç başladı, tahmin süresi doldu.",
@@ -249,9 +245,10 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   }
   function renderHead(){
     var me=el("me");
+    el("loginbox").hidden=!!auth||!BASE||!KEY;
     if(!auth){me.hidden=true;return}
     me.hidden=false;
-    me.innerHTML='<span>Oynayan: <b>'+esc(auth.nick)+'</b></span> <button class="link" data-action="logout">çıkış yap</button>';
+    me.innerHTML='<span>Oynayan: <b>'+esc(auth.nick)+'</b></span> <button class="link" data-action="logout">adı değiştir</button>';
   }
 
   function filterChips(){
@@ -272,9 +269,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     var list=matches.filter(function(m){return filter==="all"||teamKey(m.home)===filter||teamKey(m.away)===filter});
     var up=list.filter(function(m){return !finished(m)}).sort(function(a,b){return a.kickoff-b.kickoff});
     var done=list.filter(finished).sort(function(a,b){return b.kickoff-a.kickoff});
-    var h="";
-    if(!auth)h+='<div class="panel"><span>Tahmin girmek için giriş yapmalısın.</span><div><button class="btn" data-action="showLogin">Giriş yap / kayıt ol</button></div></div>';
-    h+=filterChips();
+    var h=filterChips();
     if(!matches.length){
       h+='<div class="empty"><b>Henüz maç eklenmemiş.</b><br>'+(isAdmin()?'Yönetim sekmesinden ilk maçı ekle.':'Yönetici maçları ekleyince burada tahmin girebileceksin.')+'</div>';
     } else if(!list.length){
@@ -370,13 +365,12 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   /* ---------- işlemler ---------- */
   async function doLogin(e){
     e.preventDefault();
-    var nick=el("loginNick").value.trim(), pin=el("loginPin").value, msg=el("loginMsg"), btn=el("loginBtn");
-    btn.disabled=true;msg.className="state";msg.textContent="Kontrol ediliyor…";
+    var nick=el("loginNick").value.trim(), msg=el("loginMsg"), btn=el("loginBtn");
+    btn.disabled=true;msg.className="state";msg.textContent="Kaydediliyor…";
     try{
-      var r=await rpc("player_login",{p_nick:nick,p_pin:pin});
-      if(!r.ok){msg.className="state warn";msg.textContent=ERR[r.error]||"Giriş yapılamadı.";btn.disabled=false;return}
-      auth={id:r.id,nick:r.nick,pin:pin};lsSet("tl_auth",auth);
-      el("loginbox").hidden=true;el("loginPin").value="";
+      var r=await rpc("player_login",{p_nick:nick});
+      if(!r.ok){msg.className="state warn";msg.textContent=ERR[r.error]||"Kaydedilemedi.";btn.disabled=false;return}
+      auth={id:r.id,nick:r.nick};lsSet("tl_auth",auth);msg.textContent="";
       await load();render();
     }catch(err){msg.className="state warn";msg.textContent="Bağlantı hatası, tekrar dene."}
     btn.disabled=false;
@@ -387,11 +381,11 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     var d=drafts[mid]||{}, h=parseInt(d.h,10), a=parseInt(d.a,10);
     if(isNaN(h)||isNaN(a)||h<0||a<0||h>30||a>30)return;
     try{
-      var r=await rpc("submit_prediction",{p_nick:auth.nick,p_pin:auth.pin,p_match:mid,p_h:h,p_a:a});
+      var r=await rpc("submit_prediction",{p_nick:auth.nick,p_match:mid,p_h:h,p_a:a});
       if(r.ok){delete drafts[mid];delete flash[mid]}
       else{
         flash[mid]=ERR[r.error]||"Kaydedilemedi.";
-        if(r.error==="wrong_pin"||r.error==="unknown_player"){auth=null;lsDel("tl_auth");flash[mid]="Oturumun süresi doldu, tekrar giriş yap."}
+        if(r.error==="unknown_player"){auth=null;lsDel("tl_auth");flash[mid]="Adın bulunamadı, adını tekrar yaz."}
       }
     }catch(e){flash[mid]="Bağlantı hatası, tekrar dene."}
     await load();render();
@@ -440,8 +434,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     if(t.dataset.filter){filter=t.dataset.filter;render();return}
     var a=t.dataset.action,m=t.dataset.m;
     if(a==="savePred")savePred(m);
-    else if(a==="showLogin"){el("loginbox").hidden=false;el("loginNick").focus()}
-    else if(a==="logout"){auth=null;lsDel("tl_auth");render()}
+    else if(a==="logout"){var old=auth&&auth.nick;auth=null;lsDel("tl_auth");render();el("loginNick").value=old||"";el("loginNick").focus()}
     else if(a==="addMatch")addMatch();
     else if(a==="saveResult")saveResult(m);
     else if(a==="clearResult")clearResult(m);
@@ -462,9 +455,8 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   setInterval(function(){var a=document.activeElement;if(BASE&&KEY&&!document.hidden&&!(a&&a.tagName==="INPUT"))load()},30000);
 
   /* ---------- başlangıç ---------- */
-  var saved=lsGet("tl_auth");if(saved&&saved.id&&saved.nick&&saved.pin)auth=saved;
+  var saved=lsGet("tl_auth");if(saved&&saved.id&&saved.nick)auth={id:saved.id,nick:saved.nick};
   var sa=ssGet("tl_admin");if(sa)adminPass=sa;
-  if(!auth&&BASE&&KEY){el("loginbox").hidden=false}
   render();
   if(BASE&&KEY)load();else loading=false,render();
 })();
