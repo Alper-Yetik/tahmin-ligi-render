@@ -11,6 +11,7 @@ Gizli bilgiler (bot anahtarı vb.) aynı klasördeki config.json dosyasında dur
 Kullanım:
   python3 bot.py           normal çalışma
   python3 bot.py --check   bağlantıları dener, mesaj göndermez
+  python3 bot.py --loop    sürekli çalışır (systemd servisi), mesajlara anında cevap verir
 """
 import datetime
 import json
@@ -49,13 +50,13 @@ def load_config():
     return cfg
 
 
-def post_json(url, payload, headers=None):
+def post_json(url, payload, headers=None, timeout=20):
     data = json.dumps(payload).encode("utf-8")
     h = {"Content-Type": "application/json"}
     h.update(headers or {})
     req = urllib.request.Request(url, data=data, headers=h, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=20) as r:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             return r.status, json.loads(r.read().decode("utf-8") or "null")
     except urllib.error.HTTPError as e:
         try:
@@ -70,8 +71,8 @@ class Bot:
         self.cfg = cfg
         self.tg_url = "https://api.telegram.org/bot" + cfg["telegram_token"]
 
-    def tg(self, method, payload=None):
-        return post_json(self.tg_url + "/" + method, payload or {})
+    def tg(self, method, payload=None, timeout=20):
+        return post_json(self.tg_url + "/" + method, payload or {}, timeout=timeout)
 
     def rpc(self, name, args):
         args = dict(args)
@@ -99,9 +100,11 @@ def save_state(st):
     os.replace(tmp, STATE_FILE)
 
 
-def handle_updates(bot):
+def handle_updates(bot, wait=0):
+    """wait > 0 ise Telegram yeni mesaj gelene kadar en fazla o kadar saniye bekletir (uzun bekleme)."""
     st = load_state()
-    status, res = bot.tg("getUpdates", {"offset": st.get("offset", 0), "timeout": 0, "allowed_updates": ["message"]})
+    status, res = bot.tg("getUpdates", {"offset": st.get("offset", 0), "timeout": wait, "allowed_updates": ["message"]},
+                         timeout=wait + 15)
     if status != 200 or not res or not res.get("ok"):
         log("getUpdates hata: %s %s" % (status, (res or {}).get("description")))
         return
@@ -167,10 +170,29 @@ def check(bot):
         print("Supabase: HATA", s, r)
 
 
+def run_loop(bot):
+    """Sürekli çalışır: mesajlara anında cevap verir, dakikada bir hatırlatmaları kontrol eder."""
+    import time
+    log("servis başladı")
+    last_due = 0.0
+    while True:
+        try:
+            handle_updates(bot, wait=50)
+            if time.time() - last_due >= 60:
+                last_due = time.time()
+                handle_due(bot)
+        except Exception as e:
+            log("döngü hatası: %s: %s" % (type(e).__name__, e))
+            time.sleep(10)
+
+
 def main():
     bot = Bot(load_config())
     if "--check" in sys.argv:
         check(bot)
+        return
+    if "--loop" in sys.argv:
+        run_loop(bot)
         return
     handle_updates(bot)
     handle_due(bot)
