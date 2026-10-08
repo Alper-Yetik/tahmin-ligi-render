@@ -192,7 +192,10 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   function teamKey(n){var t=TEAMS.find(function(t){return t.name.toLowerCase()===String(n).trim().toLowerCase()});return t?t.key:""}
   function teamHtml(n,cls){var k=teamKey(n);return '<div class="team '+(cls||"")+'">'+(cls==="away"?esc(n)+'<span class="dot '+k+'"></span>':'<span class="dot '+k+'"></span>'+esc(n))+'</div>'}
   function fmtDate(ms){try{return new Date(ms).toLocaleString("tr-TR",{timeZone:"Europe/Istanbul",weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}catch(e){return ""}}
+  var LOCK_MS=5*3600*1000;
   function started(m){return Date.now()>=m.kickoff}
+  function closed(m){return Date.now()>=m.kickoff-LOCK_MS}
+  function fmtTime(ms){try{return new Date(ms).toLocaleString("tr-TR",{timeZone:"Europe/Istanbul",hour:"2-digit",minute:"2-digit"})}catch(e){return ""}}
   function finished(m){return typeof m.hs==="number"&&typeof m.as==="number"}
   function sgn(n){return n>0?1:n<0?-1:0}
   function score(p,m){
@@ -263,7 +266,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
       '<div><span>Sonucu ve averajı bildin</span><b>'+DIFF+' puan</b></div>'+
       '<div><span>Sadece galibi (ya da beraberliği) bildin</span><b>'+SIDE+' puan</b></div>'+
       '<div><span>Yanlış tahmin</span><b>0 puan</b></div>'+
-      '<span class="state">Her maça bir kez tahmin girersin, kaydedince kilitlenir ve değiştirilemez. Maç başlayınca tahmin girişi kapanır. Herkesin tahmini maç kartında görünür. Skorlar 90 dakika + uzatma sonucudur, penaltılar sayılmaz.</span></div>';
+      '<span class="state">Her maça bir kez tahmin girersin, kaydedince kilitlenir ve değiştirilemez. Tahmin girişi maç başlamadan 5 saat önce kapanır. Herkesin tahmini maç kartında görünür. Skorlar 90 dakika + uzatma sonucudur, penaltılar sayılmaz.</span></div>';
   }
 
   function matchesHtml(){
@@ -283,7 +286,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   }
 
   function matchCard(m){
-    var mine=auth?predFor(m.id,auth.id):null, locked=started(m)||!auth||!!mine, fin=finished(m);
+    var mine=auth?predFor(m.id,auth.id):null, locked=closed(m)||!auth||!!mine, fin=finished(m);
     var d=drafts[m.id]||{};
     var hv=d.h!==undefined?d.h:(mine?mine.h:""), av=d.a!==undefined?d.a:(mine?mine.a:"");
     var center;
@@ -297,8 +300,8 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     if(fin){
       var pt=score(mine,m);
       foot='<div class="foot">'+(mine?'<span class="state">Tahminin: <b>'+mine.h+' - '+mine.a+'</b></span> <span class="pts '+(pt?"":"zero")+'">+'+pt+'</span>':'<span class="state">Tahmin girmedin</span>')+'</div>';
-    } else if(started(m)){
-      foot='<div class="foot">'+(mine?'<span class="state">Tahminin: <b>'+mine.h+' - '+mine.a+'</b> · Maç başladı, sonuç bekleniyor</span>':'<span class="state warn">Tahmin süresi doldu</span>')+'</div>';
+    } else if(closed(m)){
+      foot='<div class="foot">'+(mine?'<span class="state">Tahminin: <b>'+mine.h+' - '+mine.a+'</b> · '+(started(m)?'Maç başladı, sonuç bekleniyor':'Tahminler kapandı')+'</span>':'<span class="state warn">Tahmin süresi doldu (maçtan 5 saat önce kapanır)</span>')+'</div>';
     } else if(!auth){
       foot='<div class="foot"><span class="state">'+countPreds(m.id)+' kişi tahmin girdi</span></div>';
     } else if(mine){
@@ -316,7 +319,8 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
         return '<span class="pill">'+esc(nameOf(p.u))+(auth&&p.u===auth.id?' (sen)':'')+' <b>'+p.h+'-'+p.a+'</b>'+(pt!=null?' <span class="p">+'+pt+'</span>':'')+'</span>';
       }).join("")+'</div>';
     }
-    return '<article class="match"><div class="meta"><span class="comp">'+esc(m.comp)+'</span><span>'+fmtDate(m.kickoff)+'</span></div>'+
+    var closing=(!fin&&!closed(m))?' · Tahmin kapanışı: '+fmtDate(m.kickoff-LOCK_MS):'';
+    return '<article class="match"><div class="meta"><span class="comp">'+esc(m.comp)+'</span><span>'+fmtDate(m.kickoff)+esc(closing)+'</span></div>'+
       '<div class="board">'+teamHtml(m.home)+center+teamHtml(m.away,"away")+'</div>'+foot+others+'</article>';
   }
 
@@ -378,14 +382,14 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   }
   async function savePred(mid){
     if(!auth)return;
-    var m=matches.find(function(x){return x.id===mid});if(!m||started(m)||predFor(mid,auth.id))return;
+    var m=matches.find(function(x){return x.id===mid});if(!m||closed(m)||predFor(mid,auth.id))return;
     var d=drafts[mid]||{}, h=parseInt(d.h,10), a=parseInt(d.a,10);
     if(isNaN(h)||isNaN(a)||h<0||a<0||h>30||a>30)return;
     try{
       var r=await rpc("submit_prediction",{p_nick:auth.nick,p_match:mid,p_h:h,p_a:a});
       if(r.ok){delete drafts[mid];delete flash[mid]}
       else{
-        flash[mid]=ERR[r.error]||"Kaydedilemedi.";
+        flash[mid]=ERR[r.error]||"Kaydedilemedi.";if(r.error==="closed")flash[mid]="Tahmin süresi doldu (maçtan 5 saat önce kapanır).";
         if(r.error==="unknown_player"){auth=null;lsDel("tl_auth");flash[mid]="Adın bulunamadı, adını tekrar yaz."}
       }
     }catch(e){flash[mid]="Bağlantı hatası, tekrar dene."}

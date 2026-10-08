@@ -104,7 +104,7 @@ begin
   end if;
   select kickoff into k from matches where id = p_match;
   if not found then return jsonb_build_object('ok', false, 'error', 'no_match'); end if;
-  if k <= now() then return jsonb_build_object('ok', false, 'error', 'closed'); end if;
+  if k - interval '5 hours' <= now() then return jsonb_build_object('ok', false, 'error', 'closed'); end if;
   insert into predictions (match_id, player_id, h, a) values (p_match, pid, p_h, p_a)
   on conflict (match_id, player_id) do nothing;
   get diagnostics n = row_count;
