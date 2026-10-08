@@ -103,13 +103,16 @@ def handle_updates(bot):
     st = load_state()
     status, res = bot.tg("getUpdates", {"offset": st.get("offset", 0), "timeout": 0, "allowed_updates": ["message"]})
     if status != 200 or not res or not res.get("ok"):
-        log("getUpdates hata: %s" % status)
+        log("getUpdates hata: %s %s" % (status, (res or {}).get("description")))
         return
+    if "--verbose" in sys.argv:
+        print("getUpdates: %d yeni mesaj, offset=%s" % (len(res["result"]), st.get("offset", 0)))
     for u in res["result"]:
         st["offset"] = u["update_id"] + 1
         msg = u.get("message") or {}
         text = (msg.get("text") or "").strip()
         chat = (msg.get("chat") or {}).get("id")
+        log("mesaj geldi: sohbet=%s metin=%r" % (chat, text[:60]))
         if chat is None or not text.startswith("/start"):
             save_state(st)
             continue
