@@ -165,6 +165,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   };
 
   var auth=null, adminPass=null, loading=true, loadError="";
+  var BOT="uclu_tahmin_bot", tgLinked={};
   var matches=[], preds={}, players={}, lastSig="";
   var tab="matches", filter="all", drafts={}, flash={}, pendingDelete=null;
   var el=function(id){return document.getElementById(id)};
@@ -214,7 +215,8 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
       var r=await Promise.all([
         sb("/rest/v1/matches?select=*&order=kickoff.asc"),
         sb("/rest/v1/predictions?select=*"),
-        sb("/rest/v1/players_public?select=*")
+        sb("/rest/v1/players_public?select=*"),
+        sb("/rest/v1/players_telegram?select=player_id").catch(function(){return []})
       ]);
       var sig=JSON.stringify(r);
       loadError="";
@@ -223,6 +225,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
         matches=r[0].map(function(x){return {id:x.id,home:x.home,away:x.away,comp:x.comp,kickoff:Date.parse(x.kickoff),hs:x.home_score,as:x.away_score}});
         preds={};r[1].forEach(function(x){preds[x.match_id+"_"+x.player_id]={m:x.match_id,u:x.player_id,h:x.h,a:x.a}});
         players={};r[2].forEach(function(x){players[x.id]=x.nick});
+        tgLinked={};r[3].forEach(function(x){tgLinked[x.player_id]=1});
         loading=false;render();
       }
     }catch(e){
@@ -252,7 +255,8 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     el("loginbox").hidden=!!auth||!BASE||!KEY;
     if(!auth){me.hidden=true;return}
     me.hidden=false;
-    me.innerHTML='<span>Oynayan: <b>'+esc(auth.nick)+'</b></span> <button class="link" data-action="logout">adı değiştir</button>';
+    var tg=tgLinked[auth.id]?'<span class="state ok">Telegram hatırlatması açık</span>':'<a class="link" target="_blank" rel="noopener" href="https://t.me/'+BOT+'?start='+encodeURIComponent(auth.id)+'">Telegram\'dan hatırlat</a>';
+    me.innerHTML='<span>Oynayan: <b>'+esc(auth.nick)+'</b></span> <button class="link" data-action="logout">adı değiştir</button> · '+tg;
   }
 
   function filterChips(){
