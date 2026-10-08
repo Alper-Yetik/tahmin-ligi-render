@@ -1,0 +1,4 @@
+telegram-bot/config.json
+telegram-bot/state.json
+telegram-bot/bot.log*
+__pycache__/
