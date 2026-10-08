@@ -116,7 +116,11 @@ def handle_updates(bot, wait=0):
         text = (msg.get("text") or "").strip()
         chat = (msg.get("chat") or {}).get("id")
         log("mesaj geldi: sohbet=%s metin=%r" % (chat, text[:60]))
-        if chat is None or not text.startswith("/start"):
+        if chat is None:
+            save_state(st)
+            continue
+        if not text.startswith("/start"):
+            bot.send(chat, "Bu bot, tahmin girmediğin maçlar için sana hatırlatma gönderir. Hatırlatma almak için siteyi aç, adını yaz ve 'Telegram'dan hatırlat' bağlantısına tıkla: " + SITE_URL)
             save_state(st)
             continue
         parts = text.split(maxsplit=1)
