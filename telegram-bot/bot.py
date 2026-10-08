@@ -82,7 +82,12 @@ class Bot:
         return status, body
 
     def send(self, chat_id, text):
-        return self.tg("sendMessage", {"chat_id": chat_id, "text": text, "disable_web_page_preview": True})
+        status, res = self.tg("sendMessage", {"chat_id": chat_id, "text": text, "disable_web_page_preview": True})
+        if status == 200 and res and res.get("ok"):
+            log("mesaj gönderildi: sohbet=%s" % chat_id)
+        else:
+            log("mesaj GÖNDERİLEMEDİ: sohbet=%s durum=%s açıklama=%s" % (chat_id, status, (res or {}).get("description")))
+        return status, res
 
 
 def load_state():
