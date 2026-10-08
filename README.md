@@ -1,17 +1,62 @@
-# Üçlü Tahmin Ligi (Render + Supabase)
+# Üçlü Tahmin Ligi
 
-Dosyalar:
-- `index.html`: site (tek dosya, derleme gerekmez)
-- `config.js`: Supabase adresi ve anon anahtarı
-- `schema.sql`: veritabanı tabloları ve kuralları
-- `seed.sql`: mevcut 35 maç
+Arkadaşlar arasında Fenerbahçe, Galatasaray ve Beşiktaş maçlarının (lig ve Avrupa) skor tahmini oyunu. Herkes adını yazıp tahmin girer, sonuçlar girilince puanlanır ve sıralama güncellenir.
 
-## 1. Supabase (veritabanı)
-1. supabase.com'da ücretsiz hesap aç, **New project** ile proje oluştur (bölge: Frankfurt uygundur).
-2. Sol menüde **SQL Editor** > yeni sorgu aç.
-3. `schema.sql` içeriğini yapıştırıp **Run** de.
-4. Yeni sorguda `seed.sql` içeriğini yapıştırıp **Run** de.
-5. Yönetici şifreni kaydet. Yeni sorguda şunu çalıştır (`BURAYA_SIFRE` yerine kendi güçlü şifreni yaz):
+Canlı site: https://tahmin-ligi-render.onrender.com/
+
+## Nasıl çalışır
+
+- **Giriş yok, hesap yok.** Oyuncu sadece adını yazar. Aynı ad her cihazdan aynı oyuncudur. Şifre ya da PIN yoktur, yani biri başkasının adını yazarak onun adına, henüz tahmin girmediği maçlara tahmin girebilir. Girilmiş tahmin kimse tarafından değiştirilemez.
+- **Her maça tek tahmin.** Kaydedilince kilitlenir, değiştirilemez, silinemez (yönetici hariç).
+- **Maçtan 5 saat önce kapanır.** Örneğin 20:00'de başlayan maça 15:00'e kadar tahmin girilir. Kural veritabanında uygulanır, tarayıcıdan atlatılamaz.
+- **Herkesin tahmini maç kartında görünür.**
+- **Saatler Türkiye saatidir (TSİ).**
+
+### Puanlama
+
+| Durum | Puan |
+|---|---|
+| Skoru tam bildin | 5 |
+| Galibi (ya da beraberliği) ve gol farkını bildin | 3 |
+| Sadece galibi (ya da beraberliği) bildin | 2 |
+| Yanlış | 0 |
+
+Skor 90 dakika + uzatma sonucudur, penaltılar sayılmaz. Örnek (gerçek skor 2-1): tahmin 2-1 → 5, 3-2 veya 1-0 → 3 (galip ve 1 gol farkı doğru), 3-0 → 2, 1-1 veya 0-1 → 0.
+
+## Mimari
+
+```
+Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspberry Pi (Python betikleri)
+        ▲                                                         │
+   Render (statik site)                                           ├─ bot.py (Telegram, sürekli servis)
+                                                                  ├─ sync_fixtures.py (yeni maçlar, saatlik)
+                                                                  └─ update_scores.py (skorlar, 2 dk'da bir)
+```
+
+| Parça | Ne yapar | Nerede |
+|---|---|---|
+| `index.html`, `config.js` | Site (tek sayfa, derleme yok) | Render (GitHub'dan otomatik yayın) |
+| `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql` | Veritabanı tabloları, kurallar, fonksiyonlar, ilk maçlar | Supabase |
+| `telegram-bot/bot.py` | Telegram: oyuncuyu bağlar, tahmin girmeyenlere hatırlatma atar | Raspberry Pi (systemd servisi) |
+| `telegram-bot/sync_fixtures.py` | ESPN'den yeni maçları ekler | Raspberry Pi (cron) |
+| `update_scores.py` | ESPN'den biten maçların skorunu yazar | Raspberry Pi (cron), bu depoda yok |
+
+### Veritabanı güvenliği
+
+- Tablolara tarayıcıdan **doğrudan yazılamaz**. Maçlar ve tahminler herkese açık okunur, oyuncu listesi sadece ad ve kimlik gösterir (`players_public` görünümü).
+- Yazma işlemleri yalnızca kontrollü fonksiyonlarla yapılır:
+  - `player_login`, `submit_prediction`: oyuncu işlemleri (kapanış, tek tahmin kuralı burada).
+  - `admin_*`: yönetici şifresi ister (maç ekle, skor gir/sil, maç sil).
+  - `bot_*`: otomasyon anahtarı ister, sadece maç ekleme, boş skora skor yazma ve Telegram işlemlerine yetkilidir. Maç silemez.
+- `config.js` içindeki **publishable** anahtar tarayıcıda görünmek üzere tasarlanmıştır. `secret` / `service_role` anahtarını, yönetici şifresini, otomasyon anahtarını ve Telegram token'ını **asla** depoya koyma.
+
+## Kurulum
+
+### 1. Supabase
+
+1. supabase.com'da proje oluştur.
+2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`.
+3. Yönetici şifresini belirle (`BURAYA_SIFRE` yerine kendi şifren):
 
 ```sql
 insert into admin_config (key, value)
@@ -19,18 +64,80 @@ values ('admin_hash', crypt('BURAYA_SIFRE', gen_salt('bf')))
 on conflict (key) do update set value = excluded.value;
 ```
 
-6. **Project Settings > API** sayfasından iki bilgiyi al:
-   - Project URL (`https://xxxx.supabase.co`)
-   - `anon` / `publishable` anahtar (**service_role değil**)
-7. Bu iki bilgiyi `config.js` içine yaz.
+4. `bot.sql` içindeki yorum satırındaki örneğe göre otomasyon anahtarını belirle (uzun, rastgele bir metin).
+5. Project Settings > API'den proje adresini ve **publishable** anahtarı al, `config.js`'e yaz.
 
-## 2. Render (site)
-Render ücretsiz **Static Site** için kodu bir GitHub deposundan çeker.
-1. GitHub'da yeni bir depo aç, bu klasördeki dosyaları yükle.
-2. render.com > **New > Static Site** > depoyu seç.
-3. Build Command: boş bırak. Publish Directory: `.`
-4. **Create Static Site**. Birkaç dakika sonra `https://....onrender.com` adresin hazır olur.
+### 2. Render (site)
 
-## Notlar
-- Ücretsiz Supabase projeleri 1 hafta hiç kullanılmazsa duraklatılır; panelden tek tıkla açılır.
-- Oyuncular sadece adını yazar, PIN yoktur. Her maça tek tahmin; kilitleme ve maç başlangıç kontrolü sunucuda yapılır.
+New > Static Site > bu depoyu seç. Branch: `main`, Build Command: boş, Publish Directory: `.`. Her `git push` siteyi otomatik günceller.
+
+### 3. Raspberry Pi (betikler)
+
+`~/tahmin-bot` klasörü:
+
+```bash
+mkdir -p ~/tahmin-bot && cd ~/tahmin-bot
+R=https://raw.githubusercontent.com/Alper-Yetik/tahmin-ligi-render/main/telegram-bot
+curl -fsSLO $R/bot.py && curl -fsSLO $R/sync_fixtures.py && curl -fsSLO $R/tahmin-bot.service
+curl -fsSL $R/config.example.json -o config.json
+nano config.json        # token, supabase adresi/anahtarı ve otomasyon anahtarını doldur
+chmod 600 config.json
+python3 bot.py --check  # Telegram ve Supabase bağlantısını dener
+```
+
+**Telegram botu (sürekli servis, mesajlara anında cevap verir):**
+
+```bash
+sudo cp tahmin-bot.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now tahmin-bot
+systemctl is-active tahmin-bot
+```
+
+**Yeni maç ekleme (saatte bir):**
+
+```bash
+python3 sync_fixtures.py --dry-run     # önce dene, hiçbir şey eklemez
+(crontab -l 2>/dev/null; echo "7 * * * * /usr/bin/python3 /home/alper/tahmin-bot/sync_fixtures.py") | crontab -
+```
+
+> `raw.githubusercontent.com` dosyaları birkaç dakika önbellekte tutabilir. Yeni yayınlanan bir dosyayı hemen indireceksen adreste `main` yerine commit numarasını kullan.
+
+## Telegram hatırlatması
+
+1. Oyuncu siteye adını yazar, üstteki **"Telegram'dan hatırlat"** bağlantısına tıklar ve botta **Başlat**'a basar. Bot oyuncuyu sohbetiyle eşler.
+2. Bir maçın tahmin kapanışına **3 saat kala** (maçtan 8 saat önce), tahmin girmemiş ve Telegram'ı bağlamış oyunculara bot özel mesaj atar. Aynı maç için bir kez.
+3. Girenlere ve bağlamayanlara mesaj gitmez.
+
+Bot kullanıcı adı: `@uclu_tahmin_bot`.
+
+## Yönetim
+
+Sayfanın altındaki **Yönetici girişi** ile şifreyi girince **Yönetim** sekmesi açılır: maç ekle, skor gir/sil, maç sil. Normalde skorları ve yeni maçları betikler girer, burası yanlış ya da eksik olduğunda elle düzeltmek içindir.
+
+## Günlük kontrol komutları (Raspberry Pi)
+
+```bash
+tail -20 ~/tahmin-bot/bot.log           # bot: gelen mesajlar, gönderilen hatırlatmalar
+tail -20 ~/tahmin-bot/fixtures.log      # yeni eklenen maçlar
+tail -20 ~/tahmin-ligi/log.txt          # skor betiği
+journalctl -u tahmin-bot -n 20 --no-pager
+sudo systemctl restart tahmin-bot       # bot kodunu güncelledikten sonra
+crontab -l                              # zamanlanmış işler
+```
+
+## Sorun giderme
+
+| Belirti | Olası neden |
+|---|---|
+| Bot cevap vermiyor | `systemctl is-active tahmin-bot` ve `bot.log`'a bak. Eski cron satırı varsa kaldır (iki süreç aynı anda mesaj okuyamaz). |
+| "Telegram'dan hatırlat" bağlantısı çıkmıyor | Önce adını yaz. Sayfayı Ctrl+F5 ile yenile. |
+| Telegram token `Unauthorized` | Token yanlış kopyalanmış ya da BotFather'da yenilenmiş. `0` (sıfır) ile `O` (harf) karışabilir, kopyala-yapıştır yap. |
+| Skor girilmiyor | `~/tahmin-ligi/log.txt`'ye bak. Gerekirse Yönetim sekmesinden elle gir. |
+| Yeni maç gelmiyor | `fixtures.log`'a bak. ESPN'in veri biçimi değişmiş olabilir. |
+| Supabase yanıt vermiyor | Ücretsiz projeler 1 hafta kullanılmazsa duraklatılır, panelden tek tıkla açılır. |
+
+## Bilinen sınırlar
+
+- Ad ile giriş: başkası senin adını yazarsa senin adına, tahmin girmediğin maçlara tahmin girebilir.
+- Skor ve fikstür verisi ESPN'in herkese açık verisinden gelir, hatalı ya da gecikmeli olabilir. Skorlar tek kaynaktan alınır.
+- Betiklerin çalışması için Raspberry Pi'nin açık ve internete bağlı olması gerekir.
