@@ -17,7 +17,7 @@ Canlı site: https://tahmin-ligi-render.onrender.com/
 | Durum | Puan |
 |---|---|
 | Skoru tam bildin | 5 |
-| Galibi ve gol farkını bildin | 3 |
+| Galibi ve gol farkını bildin veya beraberliği bildin | 3 |
 | Galibi bildin ama gol farkı yanlış | 2 |
 | Yanlış | 0 |
 
