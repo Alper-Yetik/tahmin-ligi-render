@@ -2,7 +2,8 @@
 """Başlamış ve henüz bitmemiş maçların CANLI skorunu ESPN'den çekip Supabase'e yazar.
 
 Siteyi canlı puan durumu için besler. Kesin (final) skoru yazmaz, onu update_scores.py yazar.
-Sadece canlı alanları (live_home, live_away, live_minute, live_state) günceller.
+Canlı alanları (live_home, live_away, live_minute, live_state), kart sayılarını ve dördüncü hakemin
+gösterdiği uzatma süresini (live_added) günceller. Kartlar maç bittikten sonra da kalır.
 Bitmemiş maç yoksa hiçbir ağ isteği yapmadan çıkar, yani cron'da her dakika çalıştırmak ucuzdur.
 
 Aynı klasördeki config.json kullanılır.
@@ -115,6 +116,57 @@ def live_state(status):
     return None
 
 
+def count_cards(comp):
+    """Maçtaki kartları sayar. Döndürür: (ev sarı, ev kırmızı, deplasman sarı, deplasman kırmızı)."""
+    team_side = {str((x.get("team") or {}).get("id")): x["homeAway"] for x in comp["competitors"]}
+    n = {"home": [0, 0], "away": [0, 0]}
+    for d in comp.get("details") or []:
+        side = team_side.get(str((d.get("team") or {}).get("id")))
+        if side not in n:
+            continue
+        if d.get("redCard"):
+            n[side][1] += 1
+        elif d.get("yellowCard"):
+            n[side][0] += 1
+    return n["home"][0], n["home"][1], n["away"][0], n["away"][1]
+
+
+ADDED_RE = re.compile(r"announced\s+(\d+)\s+minutes?\s+of\s+added\s+time", re.I)
+
+
+def announced_added(commentary, period):
+    """Dördüncü hakemin bu devre için gösterdiği uzatma süresini (dakika) bulur, yoksa None.
+
+    ESPN yorumunda "Fourth official has announced 4 minutes of added time." satırı, devrenin
+    sonuna doğru (45' ya da 90' civarı) gelir. Birden fazla varsa en yenisini alırız.
+    """
+    prefix = {1: "45", 2: "90", 3: "105", 4: "120"}.get(period)
+    if not prefix:
+        return None
+    best = None
+    for i, c in enumerate(commentary or []):
+        m = ADDED_RE.search(c.get("text") or "")
+        if not m:
+            continue
+        shown = ((c.get("time") or {}).get("displayValue") or "")
+        if not re.match(r"^%s(\D|$)" % prefix, shown):
+            continue
+        order = (c.get("time") or {}).get("value")
+        key = (order if isinstance(order, (int, float)) else -1, c.get("sequence", i) if isinstance(c.get("sequence", i), (int, float)) else i)
+        if best is None or key >= best[0]:
+            best = (key, int(m.group(1)))
+    return best[1] if best else None
+
+
+def fetch_added(event_id, period):
+    try:
+        s = http_json("https://site.api.espn.com/apis/site/v2/sports/soccer/all/summary?event=%s" % event_id)
+    except Exception as e:
+        log("özet okunamadı (%s): %s" % (event_id, type(e).__name__))
+        return None
+    return announced_added(s.get("commentary"), period)
+
+
 def main():
     dry = "--dry-run" in sys.argv
     cfg = load_config()
@@ -124,13 +176,14 @@ def main():
     if dry and "--now" in sys.argv:  # deneme: "şu an" saatini ele alır, örn. --now 2026-10-09T17:30:00Z
         now = parse_utc(sys.argv[sys.argv.index("--now") + 1])
 
+    # Kesin skoru girilmiş maçlar için de, bittikten sonra son kartların işlenmesi için 3 saat bakılır.
     cands = []
     for m in matches:
-        if m.get("home_score") is not None and m.get("away_score") is not None:
-            continue
+        final = m.get("home_score") is not None and m.get("away_score") is not None
         k = parse_utc(m["kickoff"])
-        if k - datetime.timedelta(minutes=20) <= now <= k + datetime.timedelta(hours=4, minutes=30):
-            cands.append((m, k))
+        hi = datetime.timedelta(hours=3) if final else datetime.timedelta(hours=4, minutes=30)
+        if k - datetime.timedelta(minutes=20) <= now <= k + hi:
+            cands.append((m, k, final))
     if not cands:
         return
 
@@ -146,7 +199,7 @@ def main():
                 cache[key] = []
         return cache[key]
 
-    for m, k in cands:
+    for m, k, final in cands:
         slug = SLUGS.get(m["comp"], "all")
         days = {(k - datetime.timedelta(days=1)).strftime("%Y%m%d"), k.strftime("%Y%m%d"), (k + datetime.timedelta(days=1)).strftime("%Y%m%d")}
         clubs = {c for c in (club_of(m["home"]), club_of(m["away"])) if c}
@@ -176,18 +229,34 @@ def main():
             hs, as_ = int(sides["home"]["score"]), int(sides["away"]["score"])
         except (KeyError, ValueError, TypeError):
             continue
-        minute = norm_minute(comp["status"].get("displayClock"), comp["status"].get("period"))
+        period = comp["status"].get("period")
+        minute = norm_minute(comp["status"].get("displayClock"), period)
+        cards = count_cards(comp)
+        # Uzatma süresi sadece oyun sürerken okunur (devre arası ve bitişte gösterilmez).
+        added = fetch_added(found["id"], period) if st == "live" else None
+        old_cards = (m.get("home_yellow"), m.get("home_red"), m.get("away_yellow"), m.get("away_red"))
+        extra_changed = old_cards != cards or m.get("live_added") != added
         changed = (m.get("live_home"), m.get("live_away"), m.get("live_state")) != (hs, as_, st)
         if dry:
-            print("%s: %s %d-%d %s %s" % (m["id"], st, hs, as_, minute, "(değişti)" if changed else ""))
+            print("%s: %s %d-%d %s kartlar(ev sarı/kırmızı, dep sarı/kırmızı)=%s uzatma=%s %s%s" % (
+                m["id"], st, hs, as_, minute, cards, added, "(skor değişti)" if changed else "", " [skor zaten kesin]" if final else ""))
             continue
-        r = http_json(cfg["supabase_url"] + "/rest/v1/rpc/bot_set_live", {
-            "p_secret": cfg["bot_secret"], "p_id": m["id"], "p_hs": hs, "p_as": as_,
-            "p_minute": minute, "p_state": st}, sb)
-        if not (r and r.get("ok")):
-            log("yazılamadı %s: %s" % (m["id"], r))
-        elif changed:
-            log("%s: %s %d-%d %s" % (m["id"], st, hs, as_, minute))
+        if not final:
+            r = http_json(cfg["supabase_url"] + "/rest/v1/rpc/bot_set_live", {
+                "p_secret": cfg["bot_secret"], "p_id": m["id"], "p_hs": hs, "p_as": as_,
+                "p_minute": minute, "p_state": st}, sb)
+            if not (r and r.get("ok")):
+                log("yazılamadı %s: %s" % (m["id"], r))
+            elif changed:
+                log("%s: %s %d-%d %s" % (m["id"], st, hs, as_, minute))
+        if extra_changed:
+            r = http_json(cfg["supabase_url"] + "/rest/v1/rpc/bot_set_extra", {
+                "p_secret": cfg["bot_secret"], "p_id": m["id"], "p_hy": cards[0], "p_hr": cards[1],
+                "p_ay": cards[2], "p_ar": cards[3], "p_added": added}, sb)
+            if not (r and r.get("ok")):
+                log("kart/uzatma yazılamadı %s: %s" % (m["id"], r))
+            else:
+                log("%s: kartlar=%s uzatma=%s" % (m["id"], cards, added))
 
 
 if __name__ == "__main__":

@@ -68,7 +68,7 @@ Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspb
 ### 1. Supabase
 
 1. supabase.com'da proje oluştur.
-2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `chat.sql`.
+2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `chat.sql`.
 3. Yönetici şifresini belirle (`BURAYA_SIFRE` yerine kendi şifren):
 
 ```sql
@@ -125,6 +125,8 @@ Giriş sadece ad olduğu için biri başkasının adıyla yazabilir. Tablo (`cha
 
 - Raspberry'deki `live_scores.py` her dakika çalışır. Başlamış ve henüz kesin skoru girilmemiş maçlar varsa ESPN'den anlık skoru ve dakikayı çeker, Supabase'e yazar (`live_home`, `live_away`, `live_minute`, `live_state`). Böyle bir maç yoksa hiçbir ağ isteği yapmadan çıkar.
 - Site canlı maçı "Canlı maçlar" bölümünde kırmızı skor ve dakika ile gösterir, tahminlerin yanında **şimdilik** kazanılan puanı yazar ve **Sıralama** sekmesini şimdiki skora göre hesaplar. Canlı maç varken sayfa 15 saniyede bir yenilenir.
+- **Kartlar:** Maç kartında her takımın adının üstünde sarı ve kırmızı kart sayısı görünür (kart yoksa hiçbir şey görünmez). Canlıyken güncellenir, maç bittikten sonra da kalır. Betik kartları ESPN'in maç olaylarından sayar.
+- **Uzatma süresi:** Dördüncü hakem uzatmayı gösterince canlı maçta dakikanın altında "Uzatma: 4 dk" yazar. Bu bilgi ESPN'in maç yorumundaki "Fourth official has announced N minutes of added time" satırından okunur. Dakika `45+2'` gibi, uzatmada geçen süreyi gösterir.
 - Canlı puanlar geçicidir. Maç bitince `update_scores.py` kesin skoru yazar ve puanlar kesinleşir. Canlı veri 10 dakikadır güncellenmediyse (Raspberry kapalı vb.) site onu canlı saymaz.
 
 ```bash
