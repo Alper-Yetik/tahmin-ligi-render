@@ -17,11 +17,23 @@ Canlı site: https://tahmin-ligi-render.onrender.com/
 | Durum | Puan |
 |---|---|
 | Skoru tam bildin | 5 |
-| Galibi (ya da beraberliği) ve gol farkını bildin | 3 |
-| Sadece galibi (ya da beraberliği) bildin | 2 |
+| Galibi ve gol farkını bildin | 3 |
+| Galibi bildin ama gol farkı yanlış | 2 |
 | Yanlış | 0 |
 
-Skor 90 dakika + uzatma sonucudur, penaltılar sayılmaz. Örnek (gerçek skor 2-1): tahmin 2-1 → 5, 3-2 veya 1-0 → 3 (galip ve 1 gol farkı doğru), 3-0 → 2, 1-1 veya 0-1 → 0.
+**Beraberlikte** gol farkı her zaman 0 olduğu için, beraberliği bilen her tahmin (skor farklı olsa bile) 3 puan alır. 2 puanlık durum sadece galibiyet sonuçlarında vardır.
+
+Skor 90 dakika + uzatma sonucudur, penaltılar sayılmaz.
+
+| Gerçek skor | Tahmin | Puan | Neden |
+|---|---|---|---|
+| 2-1 | 2-1 | 5 | Skor tam |
+| 2-1 | 3-2 veya 1-0 | 3 | Galip ve 1 gol farkı doğru |
+| 2-1 | 3-0 | 2 | Galip doğru, fark yanlış (3 gol) |
+| 2-1 | 1-1 veya 0-1 | 0 | Galip yanlış |
+| 2-2 | 2-2 | 5 | Skor tam |
+| 2-2 | 1-1 veya 0-0 | 3 | Beraberlik doğru, fark (0) doğru |
+| 2-2 | 2-1 | 0 | Beraberlik tahmin edilmemiş |
 
 ## Mimari
 

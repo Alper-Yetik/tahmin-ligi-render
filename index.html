@@ -297,9 +297,10 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   function rulesHtml(){
     return '<div class="rules"><h3>Puanlama</h3>'+
       '<div><span>Skoru tam bildin</span><b>'+EXACT+' puan</b></div>'+
-      '<div><span>Sonucu ve averajı bildin</span><b>'+DIFF+' puan</b></div>'+
-      '<div><span>Sadece galibi (ya da beraberliği) bildin</span><b>'+SIDE+' puan</b></div>'+
+      '<div><span>Galibi ve gol farkını bildin</span><b>'+DIFF+' puan</b></div>'+
+      '<div><span>Galibi bildin ama gol farkı yanlış</span><b>'+SIDE+' puan</b></div>'+
       '<div><span>Yanlış tahmin</span><b>0 puan</b></div>'+
+      '<span class="state">Beraberlikte gol farkı hep 0 olduğu için, beraberliği bilen her tahmin (skor farklı olsa bile, örneğin 1-1 yerine 2-2) 3 puan alır. Beraberlik tahmini yapıp galibiyet çıkarsa ya da tersi olursa 0 puan.</span>'+
       '<span class="state">Her maça bir kez tahmin girersin, kaydedince kilitlenir ve değiştirilemez. Tahmin girişi maç başlamadan 5 saat önce kapanır. Herkesin tahmini maç kartında görünür. Skorlar 90 dakika + uzatma sonucudur, penaltılar sayılmaz.</span></div>';
   }
 
