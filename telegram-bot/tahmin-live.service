@@ -1,0 +1,15 @@
+[Unit]
+Description=Üçlü Tahmin Ligi canlı skor servisi
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=alper
+WorkingDirectory=/home/alper/tahmin-bot
+ExecStart=/usr/bin/python3 /home/alper/tahmin-bot/live_scores.py --loop
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

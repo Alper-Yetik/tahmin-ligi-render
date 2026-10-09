@@ -131,9 +131,15 @@ Giriş sadece ad olduğu için biri başkasının adıyla yazabilir. Tablo (`cha
 
 ```bash
 cd ~/tahmin-bot && python3 live_scores.py --dry-run     # ne yazacağını gösterir
-(crontab -l 2>/dev/null; echo "* * * * * /usr/bin/flock -n /tmp/tahmin-live.lock /usr/bin/python3 /home/alper/tahmin-bot/live_scores.py") | crontab -
+# Önerilen: sürekli servis, maç sürerken 20 saniyede bir kontrol eder
+curl -fsSLO https://raw.githubusercontent.com/Alper-Yetik/tahmin-ligi-render/main/telegram-bot/tahmin-live.service
+sudo cp tahmin-live.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now tahmin-live
 tail -20 ~/tahmin-bot/live.log
 ```
+
+Servis kullanırsan cron'daki `live_scores.py` satırını kaldır (`crontab -e`), ikisi aynı anda çalışmasın. Cron ile en sık dakikada bir çalışır:
+`* * * * * /usr/bin/flock -n /tmp/tahmin-live.lock /usr/bin/python3 /home/alper/tahmin-bot/live_scores.py`.
+ESPN'in canlı verisi zaten yaklaşık 30-60 saniyede bir yenilenir, 20 saniyeden sık sormanın faydası yoktur.
 
 ## Telegram hatırlatması
 

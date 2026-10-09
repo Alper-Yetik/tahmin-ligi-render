@@ -9,7 +9,8 @@ Bitmemiş maç yoksa hiçbir ağ isteği yapmadan çıkar, yani cron'da her daki
 Aynı klasördeki config.json kullanılır.
 
 Kullanım:
-  python3 live_scores.py             normal çalışma
+  python3 live_scores.py             bir kez çalışır (cron için)
+  python3 live_scores.py --loop      sürekli çalışır, maç sürerken 20 saniyede bir (systemd servisi)
   python3 live_scores.py --dry-run   ne yazacağını gösterir, hiçbir şey yazmaz
 """
 import datetime
@@ -185,7 +186,7 @@ def main():
         if k - datetime.timedelta(minutes=20) <= now <= k + hi:
             cands.append((m, k, final))
     if not cands:
-        return
+        return False
 
     cache = {}
 
@@ -257,11 +258,30 @@ def main():
                 log("kart/uzatma yazılamadı %s: %s" % (m["id"], r))
             else:
                 log("%s: kartlar=%s uzatma=%s" % (m["id"], cards, added))
+    return True
+
+
+def run_loop():
+    """Sürekli çalışır: maç sürerken 20 saniyede, maç yokken dakikada bir kontrol eder."""
+    import time
+    log("canlı skor servisi başladı")
+    while True:
+        try:
+            busy = main()
+        except SystemExit:
+            raise
+        except Exception as e:
+            log("döngü hatası: %s: %s" % (type(e).__name__, e))
+            busy = False
+        time.sleep(20 if busy else 60)
 
 
 if __name__ == "__main__":
     try:
-        main()
+        if "--loop" in sys.argv:
+            run_loop()
+        else:
+            main()
     except SystemExit:
         raise
     except Exception as e:
