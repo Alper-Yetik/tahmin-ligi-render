@@ -72,6 +72,13 @@ button{cursor:pointer}
 .btn.danger{background:transparent;color:var(--bad);border:1px solid var(--bad)}
 .pts{display:inline-block;background:var(--gold-bg);color:var(--gold);border-radius:6px;padding:3px 10px;font-family:var(--display);font-weight:700;font-size:1.1rem;font-variant-numeric:tabular-nums}
 .pts.zero{background:var(--field);color:var(--muted)}
+.pts.live{outline:1px dashed var(--bad)}
+.final.livefinal{background:var(--bad);color:#fff}
+.livebadge{color:var(--bad);font-weight:700;letter-spacing:.04em}
+.sec.live{color:var(--bad)}
+p.state.live{margin:0}
+@media (prefers-reduced-motion:no-preference){.livebadge{animation:pulse 1.6s ease-in-out infinite}}
+@keyframes pulse{50%{opacity:.45}}
 .others{border-top:1px dashed var(--line);padding-top:10px;display:flex;flex-wrap:wrap;gap:6px 8px}
 .pill{display:inline-flex;gap:6px;align-items:baseline;background:var(--field);border:1px solid var(--line);border-radius:6px;padding:3px 9px;font-size:.84rem}
 .pill b{font-family:var(--display);font-size:1rem;font-variant-numeric:tabular-nums}
@@ -199,11 +206,22 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   function fmtTime(ms){try{return new Date(ms).toLocaleString("tr-TR",{timeZone:"Europe/Istanbul",hour:"2-digit",minute:"2-digit"})}catch(e){return ""}}
   function finished(m){return typeof m.hs==="number"&&typeof m.as==="number"}
   function sgn(n){return n>0?1:n<0?-1:0}
+  /* Canlı skor: Raspberry her dakika yazar. 10 dakikadır güncellenmediyse eski sayılır. */
+  function isLive(m){
+    return !finished(m)&&typeof m.lh==="number"&&typeof m.la==="number"&&(m.lst==="live"||m.lst==="ht"||m.lst==="ft")&&started(m)&&Date.now()-m.lupd<10*60*1000;
+  }
+  function effRes(m){
+    if(finished(m))return {hs:m.hs,as:m.as,live:false};
+    if(isLive(m))return {hs:m.lh,as:m.la,live:true};
+    return null;
+  }
+  function liveLabel(m){return m.lst==="ht"?"DEVRE ARASI":m.lst==="ft"?"MAÇ BİTTİ":"CANLI"+(m.lmin?" "+m.lmin:"")}
   function score(p,m){
-    if(!p||!finished(m))return null;
-    if(p.h===m.hs&&p.a===m.as)return EXACT;
-    if(sgn(p.h-p.a)!==sgn(m.hs-m.as))return 0;
-    return (p.h-p.a===m.hs-m.as)?DIFF:SIDE;
+    var r=effRes(m);
+    if(!p||!r)return null;
+    if(p.h===r.hs&&p.a===r.as)return EXACT;
+    if(sgn(p.h-p.a)!==sgn(r.hs-r.as))return 0;
+    return (p.h-p.a===r.hs-r.as)?DIFF:SIDE;
   }
   function nameOf(id){return players[id]||"Oyuncu"}
   function predFor(mid,id){return preds[mid+"_"+id]}
@@ -222,7 +240,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
       loadError="";
       if(sig!==lastSig||loading){
         lastSig=sig;
-        matches=r[0].map(function(x){return {id:x.id,home:x.home,away:x.away,comp:x.comp,kickoff:Date.parse(x.kickoff),hs:x.home_score,as:x.away_score}});
+        matches=r[0].map(function(x){return {id:x.id,home:x.home,away:x.away,comp:x.comp,kickoff:Date.parse(x.kickoff),hs:x.home_score,as:x.away_score,lh:x.live_home,la:x.live_away,lmin:x.live_minute,lst:x.live_state,lupd:x.live_updated?Date.parse(x.live_updated):0}});
         preds={};r[1].forEach(function(x){preds[x.match_id+"_"+x.player_id]={m:x.match_id,u:x.player_id,h:x.h,a:x.a}});
         players={};r[2].forEach(function(x){players[x.id]=x.nick});
         tgLinked={};r[3].forEach(function(x){tgLinked[x.player_id]=1});
@@ -275,7 +293,8 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
 
   function matchesHtml(){
     var list=matches.filter(function(m){return filter==="all"||teamKey(m.home)===filter||teamKey(m.away)===filter});
-    var up=list.filter(function(m){return !finished(m)}).sort(function(a,b){return a.kickoff-b.kickoff});
+    var liveList=list.filter(isLive).sort(function(a,b){return a.kickoff-b.kickoff});
+    var up=list.filter(function(m){return !finished(m)&&!isLive(m)}).sort(function(a,b){return a.kickoff-b.kickoff});
     var done=list.filter(finished).sort(function(a,b){return b.kickoff-a.kickoff});
     var h=filterChips();
     if(!matches.length){
@@ -283,6 +302,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     } else if(!list.length){
       h+='<div class="empty">Bu takım için maç yok.</div>';
     } else {
+      if(liveList.length){h+='<h2 class="sec live">Canlı maçlar</h2><div class="list">'+liveList.map(matchCard).join("")+'</div>'}
       if(up.length){h+='<h2 class="sec">Oynanacak maçlar</h2><div class="list">'+up.map(matchCard).join("")+'</div>'}
       if(done.length){h+='<h2 class="sec">Oynanan maçlar</h2><div class="list">'+done.map(matchCard).join("")+'</div>'}
     }
@@ -290,12 +310,14 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   }
 
   function matchCard(m){
-    var mine=auth?predFor(m.id,auth.id):null, locked=closed(m)||!auth||!!mine, fin=finished(m);
+    var mine=auth?predFor(m.id,auth.id):null, locked=closed(m)||!auth||!!mine, fin=finished(m), lv=isLive(m);
     var d=drafts[m.id]||{};
     var hv=d.h!==undefined?d.h:(mine?mine.h:""), av=d.a!==undefined?d.a:(mine?mine.a:"");
     var center;
     if(fin){
       center='<div class="score"><span class="final">'+m.hs+' - '+m.as+'</span></div>';
+    } else if(lv){
+      center='<div class="score"><span class="final livefinal">'+m.lh+' - '+m.la+'</span></div>';
     } else {
       center='<div class="score"><input id="h_'+esc(m.id)+'" data-m="'+esc(m.id)+'" data-side="h" type="number" inputmode="numeric" min="0" max="30" value="'+esc(hv)+'" '+(locked?"disabled":"")+' aria-label="'+esc(m.home)+' gol tahmini">'+
         '<span>-</span><input id="a_'+esc(m.id)+'" data-m="'+esc(m.id)+'" data-side="a" type="number" inputmode="numeric" min="0" max="30" value="'+esc(av)+'" '+(locked?"disabled":"")+' aria-label="'+esc(m.away)+' gol tahmini"></div>';
@@ -304,6 +326,9 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     if(fin){
       var pt=score(mine,m);
       foot='<div class="foot">'+(mine?'<span class="state">Tahminin: <b>'+mine.h+' - '+mine.a+'</b></span> <span class="pts '+(pt?"":"zero")+'">+'+pt+'</span>':'<span class="state">Tahmin girmedin</span>')+'</div>';
+    } else if(lv){
+      var lpt=score(mine,m);
+      foot='<div class="foot">'+(mine?'<span class="state">Tahminin: <b>'+mine.h+' - '+mine.a+'</b></span> <span class="pts live '+(lpt?"":"zero")+'">+'+lpt+' şimdilik</span>':'<span class="state">Tahmin girmedin</span>')+'</div>';
     } else if(closed(m)){
       foot='<div class="foot">'+(mine?'<span class="state">Tahminin: <b>'+mine.h+' - '+mine.a+'</b> · '+(started(m)?'Maç başladı, sonuç bekleniyor':'Tahminler kapandı')+'</span>':'<span class="state warn">Tahmin süresi doldu (maçtan 5 saat önce kapanır)</span>')+'</div>';
     } else if(!auth){
@@ -324,7 +349,8 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
       }).join("")+'</div>';
     }
     var closing=(!fin&&!closed(m))?' · Tahmin kapanışı: '+fmtDate(m.kickoff-LOCK_MS):'';
-    return '<article class="match"><div class="meta"><span class="comp">'+esc(m.comp)+'</span><span>'+fmtDate(m.kickoff)+esc(closing)+'</span></div>'+
+    var badge=lv?'<span class="livebadge">● '+esc(liveLabel(m))+'</span> · ':'';
+    return '<article class="match"><div class="meta"><span class="comp">'+esc(m.comp)+'</span><span>'+badge+fmtDate(m.kickoff)+esc(closing)+'</span></div>'+
       '<div class="board">'+teamHtml(m.home)+center+teamHtml(m.away,"away")+'</div>'+foot+others+'</article>';
   }
 
@@ -340,14 +366,15 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
       });
       return r;
     }).sort(function(a,b){return b.pts-a.pts||b.exact-a.exact||nameOf(a.id).localeCompare(nameOf(b.id),"tr")});
-    var doneCount=matches.filter(finished).length;
+    var doneCount=matches.filter(finished).length, liveCount=matches.filter(isLive).length;
     if(!rows.length)return '<div class="empty"><b>Sıralama boş.</b><br>İlk oyuncular kayıt olunca burada görünecek.</div>'+rulesHtml();
     var h='<div class="tablebox"><table><thead><tr><th>#</th><th>Oyuncu</th><th>Tam skor</th><th>Maç</th><th>Puan</th></tr></thead><tbody>';
     rows.forEach(function(r,i){
       var me=auth&&r.id===auth.id;
       h+='<tr class="'+(me?"mine":"")+'"><td class="rank">'+(i+1)+'</td><td>'+esc(nameOf(r.id))+(me?' <span class="state">(sen)</span>':'')+'</td><td>'+r.exact+'</td><td>'+r.played+'</td><td class="total">'+r.pts+'</td></tr>';
     });
-    return h+'</tbody></table></div><p class="state">Puanlanan maç sayısı: '+doneCount+'</p>'+rulesHtml();
+    var note=liveCount?'<p class="state live"><span class="livebadge">● CANLI</span> '+liveCount+' maç sürüyor. Puanlar şimdiki skora göre hesaplanıyor, maç bitince kesinleşir.</p>':'';
+    return note+h+'</tbody></table></div><p class="state">Bitmiş maç sayısı: '+doneCount+(liveCount?' · Canlı: '+liveCount:'')+'</p>'+rulesHtml();
   }
 
   function adminHtml(){
@@ -461,7 +488,12 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   el("adminLink").addEventListener("click",function(){el("adminbox").hidden=false;el("adminPass").focus()});
   el("adminCancel").addEventListener("click",function(){el("adminbox").hidden=true});
   el("adminOut").addEventListener("click",function(){adminPass=null;ssDel("tl_admin");tab="matches";render()});
-  setInterval(function(){var a=document.activeElement;if(BASE&&KEY&&!document.hidden&&!(a&&a.tagName==="INPUT"))load()},30000);
+  /* Canlı maç varken 15 saniyede bir, yoksa 30 saniyede bir yenile. */
+  (function tick(){
+    var a=document.activeElement;
+    if(BASE&&KEY&&!document.hidden&&!(a&&a.tagName==="INPUT"))load();
+    setTimeout(tick,matches.some(isLive)?15000:30000);
+  })();
 
   /* ---------- başlangıç ---------- */
   var saved=lsGet("tl_auth");if(saved&&saved.id&&saved.nick)auth={id:saved.id,nick:saved.nick};

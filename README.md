@@ -39,6 +39,7 @@ Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspb
 | `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql` | Veritabanı tabloları, kurallar, fonksiyonlar, ilk maçlar | Supabase |
 | `telegram-bot/bot.py` | Telegram: oyuncuyu bağlar, tahmin girmeyenlere hatırlatma atar | Raspberry Pi (systemd servisi) |
 | `telegram-bot/sync_fixtures.py` | ESPN'den yeni maçları ekler | Raspberry Pi (cron) |
+| `telegram-bot/live_scores.py` | Sürmekte olan maçların canlı skorunu yazar (canlı puan durumu) | Raspberry Pi (cron, dakikada bir) |
 | `update_scores.py` | ESPN'den biten maçların skorunu yazar | Raspberry Pi (cron), bu depoda yok |
 
 ### Veritabanı güvenliği
@@ -55,7 +56,7 @@ Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspb
 ### 1. Supabase
 
 1. supabase.com'da proje oluştur.
-2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`.
+2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`.
 3. Yönetici şifresini belirle (`BURAYA_SIFRE` yerine kendi şifren):
 
 ```sql
@@ -101,6 +102,18 @@ python3 sync_fixtures.py --dry-run     # önce dene, hiçbir şey eklemez
 ```
 
 > `raw.githubusercontent.com` dosyaları birkaç dakika önbellekte tutabilir. Yeni yayınlanan bir dosyayı hemen indireceksen adreste `main` yerine commit numarasını kullan.
+
+## Canlı puan durumu
+
+- Raspberry'deki `live_scores.py` her dakika çalışır. Başlamış ve henüz kesin skoru girilmemiş maçlar varsa ESPN'den anlık skoru ve dakikayı çeker, Supabase'e yazar (`live_home`, `live_away`, `live_minute`, `live_state`). Böyle bir maç yoksa hiçbir ağ isteği yapmadan çıkar.
+- Site canlı maçı "Canlı maçlar" bölümünde kırmızı skor ve dakika ile gösterir, tahminlerin yanında **şimdilik** kazanılan puanı yazar ve **Sıralama** sekmesini şimdiki skora göre hesaplar. Canlı maç varken sayfa 15 saniyede bir yenilenir.
+- Canlı puanlar geçicidir. Maç bitince `update_scores.py` kesin skoru yazar ve puanlar kesinleşir. Canlı veri 10 dakikadır güncellenmediyse (Raspberry kapalı vb.) site onu canlı saymaz.
+
+```bash
+cd ~/tahmin-bot && python3 live_scores.py --dry-run     # ne yazacağını gösterir
+(crontab -l 2>/dev/null; echo "* * * * * /usr/bin/flock -n /tmp/tahmin-live.lock /usr/bin/python3 /home/alper/tahmin-bot/live_scores.py") | crontab -
+tail -20 ~/tahmin-bot/live.log
+```
 
 ## Telegram hatırlatması
 
