@@ -74,6 +74,8 @@ button{cursor:pointer}
 .pts.zero{background:var(--field);color:var(--muted)}
 .pts.live{outline:1px dashed var(--bad)}
 .final.livefinal{background:var(--bad);color:#fff}
+.score.livecol{flex-direction:column;gap:4px}
+.livemin{font-family:var(--display);font-size:1.05rem;font-weight:700;letter-spacing:.04em;color:var(--bad);font-variant-numeric:tabular-nums;min-height:1.2em}
 .livebadge{color:var(--bad);font-weight:700;letter-spacing:.04em}
 .sec.live{color:var(--bad)}
 p.state.live{margin:0}
@@ -215,7 +217,8 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     if(isLive(m))return {hs:m.lh,as:m.la,live:true};
     return null;
   }
-  function liveLabel(m){return m.lst==="ht"?"DEVRE ARASI":m.lst==="ft"?"MAÇ BİTTİ":"CANLI"+(m.lmin?" "+m.lmin:"")}
+  function liveLabel(m){return m.lst==="ht"?"DEVRE ARASI":m.lst==="ft"?"MAÇ BİTTİ":"CANLI"}
+  function liveMinute(m){return m.lst==="ht"?"Devre arası":m.lst==="ft"?"MS":(m.lmin||"")}
   function score(p,m){
     var r=effRes(m);
     if(!p||!r)return null;
@@ -317,7 +320,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     if(fin){
       center='<div class="score"><span class="final">'+m.hs+' - '+m.as+'</span></div>';
     } else if(lv){
-      center='<div class="score"><span class="final livefinal">'+m.lh+' - '+m.la+'</span></div>';
+      center='<div class="score livecol"><span class="final livefinal">'+m.lh+' - '+m.la+'</span><span class="livemin">'+esc(liveMinute(m))+'</span></div>';
     } else {
       center='<div class="score"><input id="h_'+esc(m.id)+'" data-m="'+esc(m.id)+'" data-side="h" type="number" inputmode="numeric" min="0" max="30" value="'+esc(hv)+'" '+(locked?"disabled":"")+' aria-label="'+esc(m.home)+' gol tahmini">'+
         '<span>-</span><input id="a_'+esc(m.id)+'" data-m="'+esc(m.id)+'" data-side="a" type="number" inputmode="numeric" min="0" max="30" value="'+esc(av)+'" '+(locked?"disabled":"")+' aria-label="'+esc(m.away)+' gol tahmini"></div>';
