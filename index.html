@@ -218,7 +218,16 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     return null;
   }
   function liveLabel(m){return m.lst==="ht"?"DEVRE ARASI":m.lst==="ft"?"MAÇ BİTTİ":"CANLI"}
-  function liveMinute(m){return m.lst==="ht"?"Devre arası":m.lst==="ft"?"MS":(m.lmin||"")}
+  /* "45'+2'" ya da "45+2" gibi uzatma dakikalarını "45+2'" biçimine çevirir. */
+  function fmtMin(s){
+    s=String(s||"").trim();
+    var x=s.match(/^(\d+)\s*'?\s*\+\s*(\d+)\s*'?$/);
+    if(x)return x[1]+"+"+x[2]+"'";
+    x=s.match(/^(\d+)\s*'?$/);
+    if(x)return x[1]+"'";
+    return s;
+  }
+  function liveMinute(m){return m.lst==="ht"?"Devre arası":m.lst==="ft"?"MS":fmtMin(m.lmin)}
   function score(p,m){
     var r=effRes(m);
     if(!p||!r)return null;

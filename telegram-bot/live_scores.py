@@ -81,6 +81,26 @@ def parse_utc(s):
     return datetime.datetime.fromisoformat(s.replace("Z", "+00:00")).astimezone(UTC)
 
 
+def norm_minute(clock, period):
+    """ESPN'in dakikasını siteye uygun yazar: normal dakika 63', uzatma dakikası 45+2'.
+
+    ESPN uzatmayı bazen "45'+2'" bazen sadece "47'" diye verir. Devre sınırını aşan dakikayı
+    (1. yarı 45, 2. yarı 90, uzatma 105 ve 120) "sınır+fazla" biçimine çeviririz.
+    """
+    s = (clock or "").strip()
+    m = re.match(r"^(\d+)\s*'?\s*\+\s*(\d+)\s*'?$", s)
+    if m:
+        return "%s+%s'" % (m.group(1), m.group(2))
+    m = re.match(r"^(\d+)\s*'?$", s)
+    if m:
+        n = int(m.group(1))
+        limit = {1: 45, 2: 90, 3: 105, 4: 120}.get(period)
+        if limit and n > limit:
+            return "%d+%d'" % (limit, n - limit)
+        return "%d'" % n
+    return s[:12]
+
+
 def live_state(status):
     """ESPN durumunu 'live' | 'ht' | 'ft' | None (canlı değil) olarak çevirir."""
     t = status.get("type", {})
@@ -156,7 +176,7 @@ def main():
             hs, as_ = int(sides["home"]["score"]), int(sides["away"]["score"])
         except (KeyError, ValueError, TypeError):
             continue
-        minute = (comp["status"].get("displayClock") or "")[:12]
+        minute = norm_minute(comp["status"].get("displayClock"), comp["status"].get("period"))
         changed = (m.get("live_home"), m.get("live_away"), m.get("live_state")) != (hs, as_, st)
         if dry:
             print("%s: %s %d-%d %s %s" % (m["id"], st, hs, as_, minute, "(değişti)" if changed else ""))
