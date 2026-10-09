@@ -74,6 +74,14 @@ button{cursor:pointer}
 .pts.zero{background:var(--field);color:var(--muted)}
 .pts.live{outline:1px dashed var(--bad)}
 .final.livefinal{background:var(--bad);color:#fff}
+.chat{gap:10px}
+.chatlist{height:min(60vh,460px);overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:2px}
+.msg{align-self:flex-start;max-width:88%;background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 10px;overflow-wrap:anywhere;min-width:0}
+.msg.mine{align-self:flex-end;border-color:var(--accent)}
+.msg .who{font-family:var(--display);font-weight:700;font-size:1.05rem}
+.msg .t{color:var(--muted);font-size:.78rem;font-variant-numeric:tabular-nums}
+.chatform{display:flex;gap:8px}
+.chatform input{flex:1;min-width:0;background:var(--field);border:1px solid var(--line);border-radius:6px;padding:9px 11px}
 .score.livecol{flex-direction:column;gap:4px}
 .livemin{font-family:var(--display);font-size:1.05rem;font-weight:700;letter-spacing:.04em;color:var(--bad);font-variant-numeric:tabular-nums;min-height:1.2em}
 .livebadge{color:var(--bad);font-weight:700;letter-spacing:.04em}
@@ -145,6 +153,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" data-tab="matches" aria-selected="true">Maçlar</button>
     <button class="tab" role="tab" data-tab="board" aria-selected="false">Sıralama</button>
+    <button class="tab" role="tab" data-tab="chat" aria-selected="false">Sohbet<span id="chatDot"></span></button>
     <button class="tab" role="tab" data-tab="admin" aria-selected="false" id="adminTab" hidden>Yönetim</button>
   </div>
 
@@ -170,7 +179,10 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     no_match:"Bu maç artık yok.",
     closed:"Maç başladı, tahmin süresi doldu.",
     already_predicted:"Bu maça zaten tahmin girmişsin.",
-    wrong_admin:"Yönetici şifresi yanlış."
+    wrong_admin:"Yönetici şifresi yanlış.",
+    too_fast:"Çok hızlı yazıyorsun, birkaç saniye bekle.",
+    busy:"Sohbet şu an çok yoğun, biraz sonra tekrar dene.",
+    invalid_body:"Mesaj 1 ile 300 karakter arasında olmalı."
   };
 
   var auth=null, adminPass=null, loading=true, loadError="";
@@ -276,8 +288,10 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     else if(loading)v.innerHTML='<div class="empty">Yükleniyor…</div>';
     else if(loadError)v.innerHTML='<div class="empty">'+esc(loadError)+'</div>';
     else if(tab==="board")v.innerHTML=boardHtml();
+    else if(tab==="chat")v.innerHTML=chatHtml();
     else if(tab==="admin"&&isAdmin())v.innerHTML=adminHtml();
     else v.innerHTML=matchesHtml();
+    if(!loading&&!loadError&&BASE&&KEY)updateChatUI(tab==="chat");
     if(aid){var n=document.getElementById(aid);if(n&&n!==document.activeElement){n.focus();try{if(s0!=null)n.setSelectionRange(s0,s0)}catch(e){}}}
   }
   function renderHead(){
@@ -411,6 +425,62 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     }).join("")+'</div>';
   }
 
+  /* ---------- sohbet ---------- */
+  var chat=[], chatDraft="", chatSeen=+(lsGet("tl_chat_seen")||0), chatBusy=false, chatErr="", chatTick=0;
+  function chatHtml(){
+    var form=auth?
+      '<div class="chatform"><input id="chatInput" maxlength="300" autocomplete="off" placeholder="Mesaj yaz…" value="'+esc(chatDraft)+'" aria-label="Mesaj"><button class="btn" id="chatSend" data-action="sendChat">Gönder</button></div><span class="state warn" id="chatErr">'+esc(chatErr)+'</span>':
+      '<span class="state">Mesaj yazmak için önce yukarıya adını yaz.</span>';
+    return '<div class="panel chat"><div id="chatlist" class="chatlist" aria-live="polite"></div>'+form+'</div>';
+  }
+  function chatListHtml(){
+    if(!chat.length)return '<div class="state">Henüz mesaj yok. İlk mesajı sen yaz.</div>';
+    return chat.map(function(m){
+      var mine=auth&&m.player_id===auth.id;
+      return '<div class="msg'+(mine?' mine':'')+'"><span class="who">'+esc(m.nick)+'</span> <span class="t">'+fmtTime(Date.parse(m.created_at))+'</span>'+
+        (isAdmin()?' <button class="link" data-action="delChat" data-id="'+m.id+'" aria-label="Mesajı sil">sil</button>':'')+
+        '<div>'+esc(m.body)+'</div></div>';
+    }).join("");
+  }
+  function updateChatUI(force){
+    var last=chat.length?chat[chat.length-1].id:0;
+    if(tab==="chat"&&last>chatSeen){chatSeen=last;lsSet("tl_chat_seen",last)}
+    var box=el("chatlist");
+    if(tab==="chat"&&box){
+      var near=force||box.scrollHeight-box.scrollTop-box.clientHeight<80;
+      var html=chatListHtml();
+      if(box.dataset.sig!==html){box.dataset.sig=html;box.innerHTML=html;if(near)box.scrollTop=box.scrollHeight}
+    }
+    var unread=chat.filter(function(m){return m.id>chatSeen&&!(auth&&m.player_id===auth.id)}).length;
+    var dot=el("chatDot");if(dot)dot.textContent=(tab!=="chat"&&unread)?" ("+(unread>9?"9+":unread)+")":"";
+  }
+  async function loadChat(){
+    if(!BASE||!KEY)return;
+    try{
+      var r=await sb("/rest/v1/chat_public?select=*&order=id.desc&limit=100");
+      r.reverse();chat=r;
+    }catch(e){return}
+    updateChatUI(false);
+  }
+  async function sendChat(){
+    var inp=el("chatInput");if(!inp||!auth||chatBusy)return;
+    var text=inp.value.trim();if(!text)return;
+    chatBusy=true;var btn=el("chatSend");if(btn)btn.disabled=true;
+    try{
+      var r=await rpc("send_chat",{p_nick:auth.nick,p_body:text});
+      if(r.ok){inp.value="";chatDraft="";chatErr=""}
+      else chatErr=ERR[r.error]||"Gönderilemedi.";
+    }catch(e){chatErr="Bağlantı hatası, tekrar dene."}
+    chatBusy=false;
+    var b2=el("chatSend");if(b2)b2.disabled=false;
+    var er=el("chatErr");if(er)er.textContent=chatErr;
+    await loadChat();updateChatUI(true);
+  }
+  async function delChat(id){
+    var r=await adminCall("admin_delete_chat",{p_id:+id});
+    if(r&&r.ok)await loadChat();
+  }
+
   /* ---------- işlemler ---------- */
   async function doLogin(e){
     e.preventDefault();
@@ -479,10 +549,12 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   /* ---------- olaylar ---------- */
   document.addEventListener("click",function(e){
     var t=e.target.closest("[data-tab],[data-filter],[data-action]");if(!t)return;
-    if(t.dataset.tab){tab=t.dataset.tab;render();return}
+    if(t.dataset.tab){tab=t.dataset.tab;render();if(tab==="chat"){loadChat().then(function(){updateChatUI(true)})}return}
     if(t.dataset.filter){filter=t.dataset.filter;render();return}
     var a=t.dataset.action,m=t.dataset.m;
-    if(a==="savePred")savePred(m);
+    if(a==="sendChat")sendChat();
+    else if(a==="delChat")delChat(t.dataset.id);
+    else if(a==="savePred")savePred(m);
     else if(a==="logout"){var old=auth&&auth.nick;auth=null;lsDel("tl_auth");render();el("loginNick").value=old||"";el("loginNick").focus()}
     else if(a==="addMatch")addMatch();
     else if(a==="saveResult")saveResult(m);
@@ -496,6 +568,14 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     var btn=document.querySelector('[data-action="savePred"][data-m="'+t.dataset.m+'"]');
     if(btn)btn.disabled=!(h!==""&&a!==""&&+h>=0&&+a>=0&&+h<=30&&+a<=30);
   });
+  document.addEventListener("input",function(e){if(e.target&&e.target.id==="chatInput")chatDraft=e.target.value});
+  document.addEventListener("keydown",function(e){if(e.key==="Enter"&&e.target&&e.target.id==="chatInput"){e.preventDefault();sendChat()}});
+  /* Sohbet açıkken 4 saniyede bir, değilken 20 saniyede bir kontrol et (okunmamış sayısı için). */
+  setInterval(function(){
+    if(document.hidden)return;
+    chatTick++;
+    if(tab==="chat"||chatTick%5===0)loadChat();
+  },4000);
   el("loginbox").addEventListener("submit",doLogin);
   el("adminbox").addEventListener("submit",doAdminLogin);
   el("adminLink").addEventListener("click",function(){el("adminbox").hidden=false;el("adminPass").focus()});
@@ -512,7 +592,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   var saved=lsGet("tl_auth");if(saved&&saved.id&&saved.nick)auth={id:saved.id,nick:saved.nick};
   var sa=ssGet("tl_admin");if(sa)adminPass=sa;
   render();
-  if(BASE&&KEY)load();else loading=false,render();
+  if(BASE&&KEY){load();loadChat()}else loading=false,render();
 })();
 </script>
 </body>

@@ -68,7 +68,7 @@ Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspb
 ### 1. Supabase
 
 1. supabase.com'da proje oluştur.
-2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`.
+2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `chat.sql`.
 3. Yönetici şifresini belirle (`BURAYA_SIFRE` yerine kendi şifren):
 
 ```sql
@@ -114,6 +114,12 @@ python3 sync_fixtures.py --dry-run     # önce dene, hiçbir şey eklemez
 ```
 
 > `raw.githubusercontent.com` dosyaları birkaç dakika önbellekte tutabilir. Yeni yayınlanan bir dosyayı hemen indireceksen adreste `main` yerine commit numarasını kullan.
+
+## Sohbet
+
+Sitedeki **Sohbet** sekmesinde oyuncular adlarıyla mesaj yazar (en fazla 300 karakter). Sayfa açıkken 4 saniyede bir yenilenir, başka sekmedeyken okunmamış mesaj sayısı sekmenin yanında görünür. Bir oyuncu 2 saniyede birden fazla, tüm sohbet dakikada 40'tan fazla mesaj yazamaz. Son 500 mesaj tutulur, eskileri otomatik silinir. Yönetici girişi yapınca her mesajın yanında "sil" bağlantısı çıkar.
+
+Giriş sadece ad olduğu için biri başkasının adıyla yazabilir. Tablo (`chat_messages`) tarayıcıdan doğrudan yazılamaz, sadece `send_chat` fonksiyonuyla yazılır. Kurulum: `chat.sql`.
 
 ## Canlı puan durumu
 
