@@ -417,7 +417,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     if(!auth){me.hidden=true;return}
     me.hidden=false;
     var tg=tgLinked[auth.id]?'<span class="state ok">Telegram hatırlatması açık</span>':'<a class="link" target="_blank" rel="noopener" href="https://t.me/'+BOT+'?start='+encodeURIComponent(auth.id)+'">Telegram\'dan hatırlat</a>';
-    me.innerHTML='<span>Oynayan: <b>'+esc(auth.nick)+'</b></span> <button class="link" data-action="logout">adı değiştir</button> · '+tg;
+    me.innerHTML='<span>Oynayan: <b>'+esc(auth.nick)+'</b></span> <button class="link" data-action="logout">adı değiştir</button> · <button class="link" data-action="signout">çıkış yap</button> · '+tg;
   }
 
   function filterChips(){
@@ -690,6 +690,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     if(a==="sendChat")sendChat();
     else if(a==="delChat")delChat(t.dataset.id);
     else if(a==="savePred")savePred(m);
+    else if(a==="signout"){auth=null;lsDel("tl_auth");chatFootKey="";render()}
     else if(a==="logout"){var old=auth&&auth.nick;auth=null;lsDel("tl_auth");render();el("loginNick").value=old||"";el("loginNick").focus()}
     else if(a==="addMatch")addMatch();
     else if(a==="saveResult")saveResult(m);
