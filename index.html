@@ -7,137 +7,218 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap">
 <style>
-/* Layout: tek sütun skor tabelası; üstte sekmeler, altında maç kartları veya sıralama tablosu.
-   Palet: çim yeşili vurgu, soğuk gri zemin, puan için amber. */
+/* Düzen: tek sütun, geniş boşluklar. Üstte marka ve sekmeler, ortada maç kartları ya da sıralama,
+   sağ altta yuvarlak sohbet düğmesi. Palet: gece sahası yeşili, altın puan vurgusu. */
 :root{
   color-scheme:light;
-  --bg:#eceff0; --surface:#ffffff; --ink:#13201a; --muted:#5b6a63; --line:#d5dcd8;
-  --accent:#0d7a4b; --accent-ink:#ffffff; --gold:#b97d00; --gold-bg:#fbefcf;
-  --bad:#b3372b; --field:#f5f7f6;
+  --bg:#edf1ef; --glow1:rgba(18,184,134,.16); --glow2:rgba(20,120,200,.08);
+  --surface:#ffffff; --surface2:#f4f7f5; --ink:#0b1710; --muted:#5a6b62; --line:#dfe7e2;
+  --accent:#0b8a57; --accent2:#12b886; --accent-ink:#ffffff; --accent-soft:rgba(11,138,87,.10);
+  --gold:#a86d00; --gold-bg:#fff1cc; --bad:#d23b2e; --field:#f3f6f4;
   --fb:#1b2a6b; --gs:#c4161c; --bjk:#111111;
+  --shadow:0 1px 2px rgba(10,30,20,.05),0 10px 30px rgba(10,30,20,.07);
+  --shadow-lg:0 24px 60px rgba(10,30,20,.28);
   --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
-  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 @media (prefers-color-scheme: dark){
   :root{
     color-scheme:dark;
-    --bg:#0f1512; --surface:#18211c; --ink:#e8efeb; --muted:#93a39a; --line:#2a372f;
-    --accent:#35c486; --accent-ink:#06180f; --gold:#f0b73a; --gold-bg:#3a2f12;
-    --bad:#ff7d6e; --field:#111a15;
-    --fb:#6f86ff; --gs:#ff5a60; --bjk:#d9d9d9;
+    --bg:#070f0b; --glow1:rgba(47,209,140,.13); --glow2:rgba(60,120,255,.08);
+    --surface:#0e1812; --surface2:#131f19; --ink:#e9f2ed; --muted:#8da298; --line:#1d2c24;
+    --accent:#2fd18c; --accent2:#19b6a0; --accent-ink:#04140c; --accent-soft:rgba(47,209,140,.12);
+    --gold:#f2c14e; --gold-bg:#33290f; --bad:#ff6b5e; --field:#0b130f;
+    --fb:#7d92ff; --gs:#ff5a60; --bjk:#dedede;
+    --shadow:0 1px 0 rgba(255,255,255,.03) inset,0 12px 32px rgba(0,0,0,.40);
+    --shadow-lg:0 24px 70px rgba(0,0,0,.6);
   }
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;padding-inline:16px;padding-block:20px 48px}
-.wrap{max-width:760px;margin-inline:auto;display:flex;flex-direction:column;gap:18px}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
+  background-color:var(--bg);
+  background-image:radial-gradient(900px 420px at 88% -8%,var(--glow1),transparent 62%),radial-gradient(760px 380px at -8% 4%,var(--glow2),transparent 60%);
+  background-repeat:no-repeat;min-height:100vh;
+  padding-inline:16px;padding-block:22px 110px;
+}
+.wrap{max-width:780px;margin-inline:auto;display:flex;flex-direction:column;gap:20px}
 h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 16px}
-h1{font-size:2.3rem;line-height:1;letter-spacing:.01em;text-transform:uppercase}
-.sub{color:var(--muted);margin:4px 0 0;font-size:.9rem}
-.me{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--muted)}
-.me b{color:var(--ink);font-weight:600}
 button,input,select{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.link{background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;font-size:.85rem}
-.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line)}
-.tab{background:none;border:0;padding:10px 14px;font-family:var(--display);font-size:1.15rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px}
-.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.sub{color:var(--muted);margin:3px 0 0;font-size:.88rem}
+
+/* ---------- üst alan ---------- */
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 16px}
+.brand{display:flex;align-items:center;gap:14px;min-width:0}
+.logo{flex:none;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:var(--accent-ink);background:linear-gradient(140deg,var(--accent),var(--accent2));box-shadow:0 8px 20px rgba(18,184,134,.28)}
+.logo svg{width:28px;height:28px}
+h1{font-size:2.15rem;line-height:.95;letter-spacing:.015em;text-transform:uppercase;font-weight:700}
+.me{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;font-size:.85rem;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px;box-shadow:var(--shadow)}
+.me b{color:var(--ink);font-weight:700}
+.link{background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;text-underline-offset:3px;font-size:.84rem;font-weight:600}
+a.link{display:inline}
+
+/* ---------- sekmeler ---------- */
+.tabs{display:flex;gap:4px;padding:5px;background:var(--surface);border:1px solid var(--line);border-radius:999px;box-shadow:var(--shadow);align-self:flex-start;max-width:100%;overflow-x:auto}
+.tab{background:none;border:0;padding:9px 20px;border-radius:999px;font-family:var(--display);font-size:1.12rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--accent-ink);background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 6px 16px rgba(18,184,134,.28)}
+
+/* ---------- filtre ---------- */
 .chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:.88rem;font-weight:500}
+.chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 15px;font-size:.85rem;font-weight:600;color:var(--muted)}
+.chip:hover{color:var(--ink)}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex:none}
 .dot.fb{background:var(--fb)} .dot.gs{background:var(--gs)} .dot.bjk{background:var(--bjk);box-shadow:0 0 0 1px var(--line)}
-.sec{font-size:1.05rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:4px}
-.list{display:flex;flex-direction:column;gap:12px}
-.match{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:12px;min-width:0}
-.meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;font-size:.82rem;color:var(--muted)}
-.comp{font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:.76rem}
-.board{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px}
-.team{display:flex;align-items:center;gap:8px;font-family:var(--display);font-size:1.4rem;font-weight:700;line-height:1.1;min-width:0;overflow-wrap:anywhere}
-.team.away{justify-content:flex-end;text-align:right}
-.score{display:flex;align-items:center;gap:6px;font-family:var(--display);font-size:1.5rem;font-weight:700}
-.score input{width:3.1rem;height:2.6rem;text-align:center;font-family:var(--display);font-size:1.5rem;font-weight:700;background:var(--field);border:1px solid var(--line);border-radius:6px;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
-.score input::-webkit-outer-spin-button,.score input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-.score input:disabled{opacity:.7}
-.final{font-variant-numeric:tabular-nums;background:var(--ink);color:var(--bg);padding:2px 12px;border-radius:6px;letter-spacing:.05em}
-.foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;min-height:34px}
-.state{font-size:.88rem;color:var(--muted)}
-.state.ok{color:var(--accent)} .state.warn{color:var(--bad)}
-.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:6px;padding:8px 16px;font-weight:600}
-.btn:disabled{opacity:.45;cursor:not-allowed}
-.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
-.btn.danger{background:transparent;color:var(--bad);border:1px solid var(--bad)}
-.pts{display:inline-block;background:var(--gold-bg);color:var(--gold);border-radius:6px;padding:3px 10px;font-family:var(--display);font-weight:700;font-size:1.1rem;font-variant-numeric:tabular-nums}
-.pts.zero{background:var(--field);color:var(--muted)}
-.pts.live{outline:1px dashed var(--bad)}
-.final.livefinal{background:var(--bad);color:#fff}
-.chat{gap:10px}
-.chatlist{height:min(60vh,460px);overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:2px}
-.msg{align-self:flex-start;max-width:88%;background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 10px;overflow-wrap:anywhere;min-width:0}
-.msg.mine{align-self:flex-end;border-color:var(--accent)}
-.msg .who{font-family:var(--display);font-weight:700;font-size:1.05rem}
-.msg .t{color:var(--muted);font-size:.78rem;font-variant-numeric:tabular-nums}
-.chatform{display:flex;gap:8px}
-.chatform input{flex:1;min-width:0;background:var(--field);border:1px solid var(--line);border-radius:6px;padding:9px 11px}
-.score.livecol{flex-direction:column;gap:4px}
-.livemin{font-family:var(--display);font-size:1.05rem;font-weight:700;letter-spacing:.04em;color:var(--bad);font-variant-numeric:tabular-nums;min-height:1.2em}
-.livebadge{color:var(--bad);font-weight:700;letter-spacing:.04em}
+
+/* ---------- maç kartları ---------- */
+.sec{font-size:1.02rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:8px;font-weight:700}
 .sec.live{color:var(--bad)}
+.list{display:flex;flex-direction:column;gap:14px}
+.match{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px 18px 14px;display:flex;flex-direction:column;gap:14px;min-width:0;box-shadow:var(--shadow)}
+.meta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;font-size:.8rem;color:var(--muted)}
+.comp{display:inline-block;font-weight:800;letter-spacing:.09em;text-transform:uppercase;font-size:.68rem;padding:4px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.comp.ucl{background:rgba(70,110,255,.13);color:#4b6bff}
+.comp.uel{background:rgba(255,140,40,.15);color:#d9731a}
+.comp.uecl{background:rgba(40,190,150,.15);color:#17a581}
+.comp.cup{background:rgba(190,120,255,.15);color:#9b59e8}
+@media (prefers-color-scheme: dark){.comp.ucl{color:#8fa4ff}.comp.uel{color:#ffab5e}.comp.uecl{color:#4fe0b8}.comp.cup{color:#c79bff}}
+.board{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px}
+.team{display:flex;align-items:center;gap:10px;font-family:var(--display);font-size:1.5rem;font-weight:700;line-height:1.05;min-width:0;overflow-wrap:anywhere}
+.team.away{justify-content:flex-end;text-align:right}
+.score{display:flex;align-items:center;gap:7px;font-family:var(--display);font-size:1.6rem;font-weight:700;color:var(--muted)}
+.score input{width:3.3rem;height:3rem;text-align:center;font-family:var(--display);font-size:1.7rem;font-weight:700;background:var(--field);border:1.5px solid var(--line);border-radius:14px;font-variant-numeric:tabular-nums;-moz-appearance:textfield;color:var(--ink)}
+.score input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 4px var(--accent-soft)}
+.score input::-webkit-outer-spin-button,.score input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.score input:disabled{opacity:.6}
+.final{font-variant-numeric:tabular-nums;background:var(--ink);color:var(--bg);padding:4px 16px;border-radius:14px;letter-spacing:.06em;font-size:1.7rem}
+.final.livefinal{background:linear-gradient(135deg,#e5392b,#ff6b5e);color:#fff;box-shadow:0 8px 20px rgba(229,57,43,.3)}
+.score.livecol{flex-direction:column;gap:5px}
+.livemin{font-family:var(--display);font-size:1.05rem;font-weight:700;letter-spacing:.05em;color:var(--bad);font-variant-numeric:tabular-nums;min-height:1.2em}
+.livebadge{color:var(--bad);font-weight:800;letter-spacing:.06em}
 p.state.live{margin:0}
-@media (prefers-reduced-motion:no-preference){.livebadge{animation:pulse 1.6s ease-in-out infinite}}
-@keyframes pulse{50%{opacity:.45}}
-.others{border-top:1px dashed var(--line);padding-top:10px;display:flex;flex-wrap:wrap;gap:6px 8px}
-.pill{display:inline-flex;gap:6px;align-items:baseline;background:var(--field);border:1px solid var(--line);border-radius:6px;padding:3px 9px;font-size:.84rem}
-.pill b{font-family:var(--display);font-size:1rem;font-variant-numeric:tabular-nums}
-.pill .p{color:var(--gold);font-weight:600}
-.tablebox{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;min-height:38px;border-top:1px solid var(--line);padding-top:12px}
+.state{font-size:.86rem;color:var(--muted)}
+.state.ok{color:var(--accent);font-weight:600} .state.warn{color:var(--bad);font-weight:600}
+.btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--accent-ink);border:0;border-radius:12px;padding:10px 20px;font-weight:700;box-shadow:0 6px 16px rgba(18,184,134,.25)}
+.btn:hover:not(:disabled){filter:brightness(1.06)}
+.btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);box-shadow:none}
+.btn.danger{background:transparent;color:var(--bad);border:1px solid var(--bad);box-shadow:none}
+.pts{display:inline-block;background:var(--gold-bg);color:var(--gold);border-radius:999px;padding:3px 12px;font-family:var(--display);font-weight:700;font-size:1.15rem;font-variant-numeric:tabular-nums}
+.pts.zero{background:var(--field);color:var(--muted)}
+.pts.live{outline:1.5px dashed var(--bad);outline-offset:1px}
+.others{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-wrap:wrap;gap:7px 8px}
+.pill{display:inline-flex;gap:7px;align-items:baseline;background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:.82rem}
+.pill b{font-family:var(--display);font-size:1.05rem;font-variant-numeric:tabular-nums}
+.pill .p{color:var(--gold);font-weight:800}
+
+/* ---------- sıralama ---------- */
+.tablebox{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow)}
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-th,td{padding:10px 12px;text-align:right;white-space:nowrap}
+th,td{padding:13px 14px;text-align:right;white-space:nowrap}
 th:nth-child(2),td:nth-child(2){text-align:left;width:100%}
 th:first-child,td:first-child{text-align:center}
-thead th{font-size:.76rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+thead th{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);font-weight:800}
 tbody tr+tr td{border-top:1px solid var(--line)}
-tbody tr.mine td{background:var(--field);font-weight:600}
-td.rank{font-family:var(--display);font-size:1.2rem;font-weight:700}
-td.total{font-family:var(--display);font-size:1.4rem;font-weight:700}
-.rules{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;font-size:.9rem}
-.rules h3{font-size:1.1rem;letter-spacing:.06em;text-transform:uppercase}
-.rules div{display:flex;justify-content:space-between;gap:12px}
-.empty{background:var(--surface);border:1px dashed var(--line);border-radius:8px;padding:28px 18px;text-align:center;color:var(--muted)}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:14px}
-.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
-label{display:flex;flex-direction:column;gap:4px;font-size:.82rem;color:var(--muted);font-weight:500;min-width:0}
-label input,label select{background:var(--field);border:1px solid var(--line);border-radius:6px;padding:8px 10px;color:var(--ink);width:100%;min-width:0}
-.adminrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border-top:1px dashed var(--line);padding-top:10px}
-.adminrow input{width:3rem;text-align:center;background:var(--field);border:1px solid var(--line);border-radius:6px;padding:6px;font-variant-numeric:tabular-nums}
+tbody tr.mine td{background:var(--accent-soft);font-weight:700}
+td.rank{font-family:var(--display);font-size:1.2rem;font-weight:700;color:var(--muted)}
+td.total{font-family:var(--display);font-size:1.6rem;font-weight:700}
+.medal{display:inline-grid;place-items:center;width:32px;height:32px;border-radius:50%;font-family:var(--display);font-size:1.15rem;font-weight:700;color:#2a1c00}
+.medal.m1{background:linear-gradient(140deg,#ffe08a,#e8a921)}
+.medal.m2{background:linear-gradient(140deg,#f0f3f5,#aab4bd);color:#1c242a}
+.medal.m3{background:linear-gradient(140deg,#f3c39b,#c4824a);color:#2b1704}
+
+/* ---------- kurallar ve genel kutular ---------- */
+.rules{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px 20px;display:flex;flex-direction:column;gap:8px;font-size:.9rem;box-shadow:var(--shadow)}
+.rules h3{font-size:1.15rem;letter-spacing:.1em;text-transform:uppercase}
+.rules div{display:flex;justify-content:space-between;gap:14px;padding:6px 0;border-bottom:1px solid var(--line)}
+.rules div b{font-family:var(--display);font-size:1.1rem;color:var(--accent)}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:20px;padding:34px 20px;text-align:center;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow)}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+label{display:flex;flex-direction:column;gap:5px;font-size:.78rem;color:var(--muted);font-weight:700;letter-spacing:.03em;min-width:0}
+label input,label select{background:var(--field);border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;color:var(--ink);width:100%;min-width:0;font-weight:500}
+label input:focus,label select:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 4px var(--accent-soft)}
+.adminrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border-top:1px dashed var(--line);padding-top:12px}
+.adminrow input{width:3.2rem;text-align:center;background:var(--field);border:1.5px solid var(--line);border-radius:10px;padding:8px;font-variant-numeric:tabular-nums}
 .adminrow .grow{flex:1}
-.pagefoot{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:space-between;font-size:.82rem;color:var(--muted)}
+.pagefoot{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:space-between;font-size:.8rem;color:var(--muted)}
 [hidden]{display:none!important}
-@media (max-width:480px){
-  h1{font-size:1.9rem}
-  .team{font-size:1.15rem}
-  .board{gap:6px}
-  .score input{width:2.7rem}
+
+/* ---------- sağ alttaki sohbet ---------- */
+.chatfab{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:calc(18px + env(safe-area-inset-bottom));width:62px;height:62px;border-radius:50%;border:0;display:grid;place-items:center;color:var(--accent-ink);background:linear-gradient(140deg,var(--accent),var(--accent2));box-shadow:0 14px 34px rgba(18,184,134,.42),0 2px 6px rgba(0,0,0,.25);z-index:60}
+.chatfab:hover{transform:translateY(-2px) scale(1.03)}
+.chatfab svg{width:28px;height:28px;grid-area:1/1}
+.chatfab .i-close{display:none}
+.chatfab[aria-expanded="true"] .i-chat{display:none}
+.chatfab[aria-expanded="true"] .i-close{display:block}
+.chatbadge{position:absolute;top:-5px;right:-5px;min-width:24px;height:24px;padding:0 6px;border-radius:12px;background:var(--bad);color:#fff;font-size:.74rem;font-weight:800;display:grid;place-items:center;box-shadow:0 0 0 3px var(--bg)}
+.chatpanel{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:calc(92px + env(safe-area-inset-bottom));width:min(390px,calc(100vw - 32px));height:min(580px,calc(100dvh - 128px));display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow-lg);overflow:hidden;z-index:60}
+.chathead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 18px;color:var(--accent-ink);background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.chathead b{display:block;font-family:var(--display);font-size:1.4rem;letter-spacing:.06em;text-transform:uppercase;line-height:1}
+.chathead span{font-size:.78rem;opacity:.85}
+.chatx{background:rgba(255,255,255,.2);border:0;border-radius:50%;width:32px;height:32px;display:grid;place-items:center;color:inherit;font-size:1.2rem;line-height:1}
+.chatlist{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--bg);overscroll-behavior:contain}
+.chatlist .state{text-align:center;margin:auto}
+.msg{align-self:flex-start;max-width:86%;background:var(--surface);border:1px solid var(--line);border-radius:16px 16px 16px 4px;padding:8px 12px;overflow-wrap:anywhere;min-width:0;box-shadow:var(--shadow)}
+.msg.mine{align-self:flex-end;border-radius:16px 16px 4px 16px;border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--accent-ink)}
+.msg .who{font-family:var(--display);font-weight:700;font-size:1.02rem;letter-spacing:.03em}
+.msg .t{opacity:.65;font-size:.72rem;font-variant-numeric:tabular-nums}
+.msg.mine .link{color:inherit}
+.chatfoot{padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;gap:6px}
+.chatform{display:flex;gap:8px;align-items:center}
+.chatform input{flex:1;min-width:0;background:var(--field);border:1.5px solid var(--line);border-radius:999px;padding:11px 16px}
+.chatform input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 4px var(--accent-soft)}
+.chatsend{flex:none;width:44px;height:44px;border-radius:50%;border:0;display:grid;place-items:center;color:var(--accent-ink);background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.chatsend:disabled{opacity:.45}
+.chatsend svg{width:20px;height:20px}
+#chatErr{min-height:1.1em;font-size:.78rem}
+
+@media (max-width:520px){
+  body{padding-inline:14px}
+  h1{font-size:1.75rem}
+  .logo{width:40px;height:40px;border-radius:12px}
+  .team{font-size:1.2rem;gap:7px}
+  .board{gap:8px}
+  .score input{width:2.9rem;height:2.8rem}
+  .final{font-size:1.45rem;padding:3px 12px}
+  .match{padding:14px}
+  .tab{padding:8px 15px}
+  .chatpanel{right:8px;left:8px;width:auto;bottom:calc(88px + env(safe-area-inset-bottom));height:min(70dvh,560px)}
 }
-@media (prefers-reduced-motion:no-preference){.btn{transition:opacity .15s}}
+@media (prefers-reduced-motion:no-preference){
+  .btn,.chatfab,.chip,.tab{transition:filter .15s,transform .15s,background-color .15s,color .15s}
+  .livebadge{animation:pulse 1.6s ease-in-out infinite}
+  .chatpanel{animation:pop .18s ease-out}
+  @keyframes pulse{50%{opacity:.45}}
+  @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div>
-      <h1>Üçlü Tahmin Ligi</h1>
-      <p class="sub">Fenerbahçe, Galatasaray ve Beşiktaş: lig ve Avrupa maçları</p>
+<div class="wrap" lang="tr">
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7.2l3.6 2.6-1.4 4.2H9.8L8.4 9.8z"/><path d="M12 7.2V2.8M15.6 9.8l4.1-1.3M14.2 14l2.6 3.5M9.8 14l-2.6 3.5M8.4 9.8L4.3 8.5"/></svg></span>
+      <div>
+        <h1>Üçlü Tahmin Ligi</h1>
+        <p class="sub">Fenerbahçe, Galatasaray ve Beşiktaş: lig ve Avrupa maçları</p>
+      </div>
     </div>
     <div class="me" id="me" hidden></div>
   </header>
 
   <form id="loginbox" class="panel" hidden>
-    <h2 style="font-size:1.4rem">Adını yaz</h2>
-    <p class="sub" style="margin:0">Tahminlerin ve puanın bu isimle görünür. Her gün aynı ismi yaz.</p>
+    <div>
+      <h2 style="font-size:1.6rem">Adını yaz</h2>
+      <p class="sub">Tahminlerin ve puanın bu isimle görünür. Her gün aynı ismi yaz.</p>
+    </div>
     <div class="fields">
       <label for="loginNick">Adın<input id="loginNick" maxlength="24" autocomplete="nickname"></label>
     </div>
@@ -145,7 +226,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   </form>
 
   <form id="adminbox" class="panel" hidden>
-    <h2 style="font-size:1.4rem">Yönetici girişi</h2>
+    <h2 style="font-size:1.6rem">Yönetici girişi</h2>
     <div class="fields"><label for="adminPass">Yönetici şifresi<input id="adminPass" type="password" autocomplete="off"></label></div>
     <div class="foot"><span class="state" id="adminMsg"></span><span><button class="btn ghost" type="button" id="adminCancel">Vazgeç</button> <button class="btn" type="submit">Giriş</button></span></div>
   </form>
@@ -153,7 +234,6 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" data-tab="matches" aria-selected="true">Maçlar</button>
     <button class="tab" role="tab" data-tab="board" aria-selected="false">Sıralama</button>
-    <button class="tab" role="tab" data-tab="chat" aria-selected="false">Sohbet<span id="chatDot"></span></button>
     <button class="tab" role="tab" data-tab="admin" aria-selected="false" id="adminTab" hidden>Yönetim</button>
   </div>
 
@@ -164,6 +244,20 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     <span><button class="link" id="adminLink" type="button">Yönetici girişi</button><button class="link" id="adminOut" type="button" hidden>Yönetici çıkışı</button></span>
   </div>
 </div>
+
+<button class="chatfab" id="chatFab" type="button" aria-label="Sohbeti aç" aria-expanded="false" aria-controls="chatPanel">
+  <svg class="i-chat" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4A2.5 2.5 0 0 1 4 13.5z"/></svg>
+  <svg class="i-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  <span class="chatbadge" id="chatBadge" hidden>0</span>
+</button>
+<section class="chatpanel" id="chatPanel" role="dialog" aria-label="Sohbet" hidden>
+  <div class="chathead">
+    <div><b>Sohbet</b><span>Maç günü sohbeti</span></div>
+    <button class="chatx" id="chatClose" type="button" aria-label="Sohbeti kapat">&times;</button>
+  </div>
+  <div id="chatlist" class="chatlist" aria-live="polite"></div>
+  <div id="chatfoot" class="chatfoot"></div>
+</section>
 
 <script src="config.js"></script>
 <script>
@@ -247,6 +341,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     if(sgn(p.h-p.a)!==sgn(r.hs-r.as))return 0;
     return (p.h-p.a===r.hs-r.as)?DIFF:SIDE;
   }
+  function compCls(c){return {"Şampiyonlar Ligi":"ucl","Avrupa Ligi":"uel","Konferans Ligi":"uecl","Türkiye Kupası":"cup","Süper Kupa":"cup"}[c]||""}
   function nameOf(id){return players[id]||"Oyuncu"}
   function predFor(mid,id){return preds[mid+"_"+id]}
   function countPreds(mid){var n=0;for(var k in preds)if(preds[k].m===mid)n++;return n}
@@ -288,10 +383,9 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     else if(loading)v.innerHTML='<div class="empty">Yükleniyor…</div>';
     else if(loadError)v.innerHTML='<div class="empty">'+esc(loadError)+'</div>';
     else if(tab==="board")v.innerHTML=boardHtml();
-    else if(tab==="chat")v.innerHTML=chatHtml();
     else if(tab==="admin"&&isAdmin())v.innerHTML=adminHtml();
     else v.innerHTML=matchesHtml();
-    if(!loading&&!loadError&&BASE&&KEY)updateChatUI(tab==="chat");
+    renderChatFoot();updateChatUI(false);
     if(aid){var n=document.getElementById(aid);if(n&&n!==document.activeElement){n.focus();try{if(s0!=null)n.setSelectionRange(s0,s0)}catch(e){}}}
   }
   function renderHead(){
@@ -377,7 +471,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     }
     var closing=(!fin&&!closed(m))?' · Tahmin kapanışı: '+fmtDate(m.kickoff-LOCK_MS):'';
     var badge=lv?'<span class="livebadge">● '+esc(liveLabel(m))+'</span> · ':'';
-    return '<article class="match"><div class="meta"><span class="comp">'+esc(m.comp)+'</span><span>'+badge+fmtDate(m.kickoff)+esc(closing)+'</span></div>'+
+    return '<article class="match"><div class="meta"><span class="comp '+compCls(m.comp)+'">'+esc(m.comp)+'</span><span>'+badge+fmtDate(m.kickoff)+esc(closing)+'</span></div>'+
       '<div class="board">'+teamHtml(m.home)+center+teamHtml(m.away,"away")+'</div>'+foot+others+'</article>';
   }
 
@@ -398,7 +492,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
     var h='<div class="tablebox"><table><thead><tr><th>#</th><th>Oyuncu</th><th>Tam skor</th><th>Maç</th><th>Puan</th></tr></thead><tbody>';
     rows.forEach(function(r,i){
       var me=auth&&r.id===auth.id;
-      h+='<tr class="'+(me?"mine":"")+'"><td class="rank">'+(i+1)+'</td><td>'+esc(nameOf(r.id))+(me?' <span class="state">(sen)</span>':'')+'</td><td>'+r.exact+'</td><td>'+r.played+'</td><td class="total">'+r.pts+'</td></tr>';
+      h+='<tr class="'+(me?"mine":"")+'"><td class="rank">'+(i<3&&r.pts>0?'<span class="medal m'+(i+1)+'">'+(i+1)+'</span>':(i+1))+'</td><td>'+esc(nameOf(r.id))+(me?' <span class="state">(sen)</span>':'')+'</td><td>'+r.exact+'</td><td>'+r.played+'</td><td class="total">'+r.pts+'</td></tr>';
     });
     var note=liveCount?'<p class="state live"><span class="livebadge">● CANLI</span> '+liveCount+' maç sürüyor. Puanlar şimdiki skora göre hesaplanıyor, maç bitince kesinleşir.</p>':'';
     return note+h+'</tbody></table></div><p class="state">Bitmiş maç sayısı: '+doneCount+(liveCount?' · Canlı: '+liveCount:'')+'</p>'+rulesHtml();
@@ -426,12 +520,28 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   }
 
   /* ---------- sohbet ---------- */
-  var chat=[], chatDraft="", chatSeen=+(lsGet("tl_chat_seen")||0), chatBusy=false, chatErr="", chatTick=0;
-  function chatHtml(){
-    var form=auth?
-      '<div class="chatform"><input id="chatInput" maxlength="300" autocomplete="off" placeholder="Mesaj yaz…" value="'+esc(chatDraft)+'" aria-label="Mesaj"><button class="btn" id="chatSend" data-action="sendChat">Gönder</button></div><span class="state warn" id="chatErr">'+esc(chatErr)+'</span>':
-      '<span class="state">Mesaj yazmak için önce yukarıya adını yaz.</span>';
-    return '<div class="panel chat"><div id="chatlist" class="chatlist" aria-live="polite"></div>'+form+'</div>';
+  var chat=[], chatDraft="", chatSeen=+(lsGet("tl_chat_seen")||0), chatBusy=false, chatErr="", chatTick=0, chatOpen=false, chatFootKey="";
+  var SEND_SVG='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4l17.4-8.1a.4.4 0 0 0 0-.7L3.4 3.6a.4.4 0 0 0-.56.5l2.3 6.6 8.6 1.3-8.6 1.3-2.3 6.6a.4.4 0 0 0 .56.5z"/></svg>';
+  /* Mesaj yazma alanı: giriş durumu değişince yeniden çizilir, yoksa yazı kutusuna dokunmaz. */
+  function renderChatFoot(){
+    var foot=el("chatfoot");if(!foot)return;
+    var key=auth?"in:"+auth.id:"out";
+    if(key===chatFootKey)return;
+    chatFootKey=key;
+    foot.innerHTML=auth?
+      '<div class="chatform"><input id="chatInput" maxlength="300" autocomplete="off" placeholder="Mesaj yaz…" value="'+esc(chatDraft)+'" aria-label="Mesaj"><button class="chatsend" id="chatSend" type="button" data-action="sendChat" aria-label="Gönder">'+SEND_SVG+'</button></div><span class="state warn" id="chatErr">'+esc(chatErr)+'</span>':
+      '<span class="state">Mesaj yazmak için önce sayfadan adını yaz.</span>';
+  }
+  function setChatOpen(open){
+    chatOpen=!!open;
+    el("chatPanel").hidden=!chatOpen;
+    var fab=el("chatFab");fab.setAttribute("aria-expanded",String(chatOpen));fab.setAttribute("aria-label",chatOpen?"Sohbeti kapat":"Sohbeti aç");
+    if(chatOpen){
+      renderChatFoot();
+      loadChat().then(function(){updateChatUI(true)});
+      updateChatUI(true);
+      var inp=el("chatInput");if(inp)setTimeout(function(){inp.focus()},50);
+    } else updateChatUI(false);
   }
   function chatListHtml(){
     if(!chat.length)return '<div class="state">Henüz mesaj yok. İlk mesajı sen yaz.</div>';
@@ -444,15 +554,16 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   }
   function updateChatUI(force){
     var last=chat.length?chat[chat.length-1].id:0;
-    if(tab==="chat"&&last>chatSeen){chatSeen=last;lsSet("tl_chat_seen",last)}
+    if(chatOpen&&last>chatSeen){chatSeen=last;lsSet("tl_chat_seen",last)}
     var box=el("chatlist");
-    if(tab==="chat"&&box){
+    if(chatOpen&&box){
       var near=force||box.scrollHeight-box.scrollTop-box.clientHeight<80;
       var html=chatListHtml();
       if(box.dataset.sig!==html){box.dataset.sig=html;box.innerHTML=html;if(near)box.scrollTop=box.scrollHeight}
     }
     var unread=chat.filter(function(m){return m.id>chatSeen&&!(auth&&m.player_id===auth.id)}).length;
-    var dot=el("chatDot");if(dot)dot.textContent=(tab!=="chat"&&unread)?" ("+(unread>9?"9+":unread)+")":"";
+    var badge=el("chatBadge");
+    if(badge){badge.hidden=chatOpen||!unread;badge.textContent=unread>9?"9+":String(unread)}
   }
   async function loadChat(){
     if(!BASE||!KEY)return;
@@ -549,7 +660,7 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   /* ---------- olaylar ---------- */
   document.addEventListener("click",function(e){
     var t=e.target.closest("[data-tab],[data-filter],[data-action]");if(!t)return;
-    if(t.dataset.tab){tab=t.dataset.tab;render();if(tab==="chat"){loadChat().then(function(){updateChatUI(true)})}return}
+    if(t.dataset.tab){tab=t.dataset.tab;render();return}
     if(t.dataset.filter){filter=t.dataset.filter;render();return}
     var a=t.dataset.action,m=t.dataset.m;
     if(a==="sendChat")sendChat();
@@ -574,8 +685,11 @@ label input,label select{background:var(--field);border:1px solid var(--line);bo
   setInterval(function(){
     if(document.hidden)return;
     chatTick++;
-    if(tab==="chat"||chatTick%5===0)loadChat();
+    if(chatOpen||chatTick%5===0)loadChat();
   },4000);
+  el("chatFab").addEventListener("click",function(){setChatOpen(!chatOpen)});
+  el("chatClose").addEventListener("click",function(){setChatOpen(false);el("chatFab").focus()});
+  document.addEventListener("keydown",function(e){if(e.key==="Escape"&&chatOpen){setChatOpen(false);el("chatFab").focus()}});
   el("loginbox").addEventListener("submit",doLogin);
   el("adminbox").addEventListener("submit",doAdminLogin);
   el("adminLink").addEventListener("click",function(){el("adminbox").hidden=false;el("adminPass").focus()});
