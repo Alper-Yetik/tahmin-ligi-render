@@ -88,7 +88,7 @@ a.link{display:inline}
 .comp.uecl{background:rgba(40,190,150,.15);color:#17a581}
 .comp.cup{background:rgba(190,120,255,.15);color:#9b59e8}
 @media (prefers-color-scheme: dark){.comp.ucl{color:#8fa4ff}.comp.uel{color:#ffab5e}.comp.uecl{color:#4fe0b8}.comp.cup{color:#c79bff}}
-.board{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px}
+.board{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px}
 .team{display:flex;align-items:center;gap:10px;font-family:var(--display);font-size:1.5rem;font-weight:700;line-height:1.05;min-width:0;overflow-wrap:anywhere}
 .team.away{justify-content:flex-end;text-align:right}
 .score{display:flex;align-items:center;gap:7px;font-family:var(--display);font-size:1.6rem;font-weight:700;color:var(--muted)}
@@ -184,9 +184,11 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   body{padding-inline:14px}
   h1{font-size:1.75rem}
   .logo{width:40px;height:40px;border-radius:12px}
-  .team{font-size:1.2rem;gap:7px}
-  .board{gap:8px}
-  .score input{width:2.9rem;height:2.8rem}
+  .team{font-size:1.02rem;gap:6px;overflow-wrap:break-word;hyphens:auto}
+  .team .dot{width:8px;height:8px}
+  .board{gap:6px}
+  .score{gap:4px}
+  .score input{width:2.5rem;height:2.6rem;font-size:1.45rem;border-radius:12px}
   .final{font-size:1.45rem;padding:3px 12px}
   .match{padding:14px}
   .tab{padding:8px 15px}
