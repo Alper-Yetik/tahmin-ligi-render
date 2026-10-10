@@ -1,23 +1,34 @@
 #!/usr/bin/env python3
 """Süper Lig ve Avrupa kupalarının (Şampiyonlar, Avrupa, Konferans Ligi) puan durumunu ESPN'den çekip Supabase'e yazar.
 
-Site "Süper Lig" ve "Avrupa" sekmelerinde gösterir. Sadece değişen tabloyu yazar. Yetkisi sınırlı otomasyon anahtarını
-kullanır (bot_set_standings). Aynı klasördeki config.json kullanılır.
+Site "Süper Lig" ve "Avrupa" sekmelerinde gösterir. ESPN'in resmi tablosu ancak maç bitince güncellenir, bu yüzden
+maç sürerken (ve bitiş ile resmi tablonun güncellenmesi arasında) ligdeki canlı maçların anlık skorları resmi tablonun
+üstüne uygulanır ("maç şu skorla biterse tablo böyle olur"). Canlı etkilenen takımların satırına "lv" (anlık skor) yazılır,
+site onu "● CANLI" olarak gösterir. Resmi tablo maçı içerince canlı hesap kendiliğinden bırakılır.
+
+Yetkisi sınırlı otomasyon anahtarını kullanır (bot_set_standings). Aynı klasördeki config.json kullanılır.
 
 Kullanım:
-  python3 sync_standings.py             normal çalışma (cron: saatte bir)
+  python3 sync_standings.py             bir kez çalışır
+  python3 sync_standings.py --loop      sürekli çalışır: maç sürerken 30 sn, yokken 2 dk'da bir (systemd servisi)
   python3 sync_standings.py --dry-run   ne yazacağını gösterir, hiçbir şey yazmaz
 """
+import copy
 import datetime
 import json
 import os
 import sys
+import time
 import urllib.request
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE = os.path.join(BASE, "standings.log")
+UTC = datetime.timezone.utc
 LEAGUES = {"super": "tur.1", "ucl": "uefa.champions", "uel": "uefa.europa", "uecl": "uefa.europa.conf"}
 ESPN = "https://site.api.espn.com/apis/v2/sports/soccer/%s/standings?season=%d"
+BOARD = "https://site.api.espn.com/apis/site/v2/sports/soccer/%s/scoreboard?dates=%s-%s"
+SKIP_STATUS = ("STATUS_POSTPONED", "STATUS_CANCELED", "STATUS_ABANDONED", "STATUS_FORFEIT", "STATUS_SUSPENDED")
+OFFICIAL_EVERY = 300  # resmi tabloyu en az bu kadar saniyede bir yenile (bekleyen maç varsa her turda)
 
 # ESPN'in İngilizce harfli adlarını sitedeki yazıma çevirir. Listede olmayan takım ESPN'deki adıyla yazılır.
 NAMES = {
@@ -60,6 +71,10 @@ def http_json(url, payload=None, headers=None, timeout=25):
         return json.loads(r.read().decode("utf-8") or "null")
 
 
+def parse_utc(s):
+    return datetime.datetime.fromisoformat(s.replace("Z", "+00:00")).astimezone(UTC)
+
+
 def season_year(now):
     """Sezon yılı: Temmuz'dan itibaren yeni sezon (2026-27 sezonu için 2026)."""
     return now.year if now.month >= 7 else now.year - 1
@@ -74,7 +89,7 @@ def stat(stats, name):
 
 
 def parse(data):
-    """ESPN puan durumunu [{r,t,o,w,d,l,gf,ga,gd,p,c,n}] biçimine çevirir (sıraya göre)."""
+    """ESPN puan durumunu sıralı satırlara çevirir: {r,t,o,w,d,l,gf,ga,gd,p,c,n} (+ iç kullanım için _i = takım kimliği)."""
     rows = []
     for child in data.get("children") or []:
         for e in (child.get("standings") or {}).get("entries") or []:
@@ -86,7 +101,7 @@ def parse(data):
                 "r": stat(st, "rank"), "t": NAMES.get(name, name)[:40], "o": stat(st, "gamesPlayed"),
                 "w": stat(st, "wins"), "d": stat(st, "ties"), "l": stat(st, "losses"),
                 "gf": stat(st, "pointsFor"), "ga": stat(st, "pointsAgainst"),
-                "gd": stat(st, "pointDifferential"), "p": stat(st, "points"),
+                "gd": stat(st, "pointDifferential"), "p": stat(st, "points"), "_i": str(team.get("id")),
             }
             color = str(note.get("color") or "")
             if len(color) == 7 and color.startswith("#"):
@@ -100,41 +115,175 @@ def parse(data):
     return rows[:80]
 
 
+def parse_events(data, now):
+    """Skor tablosundan lig maçlarını çıkarır: {id, state, h, a, hs, as, start}. Sadece oynanan/biten maçlar (state in/post)."""
+    out = []
+    for ev in data.get("events") or []:
+        try:
+            comp = ev["competitions"][0]
+            t = comp["status"]["type"]
+            state = t.get("state")
+            if state not in ("in", "post") or t.get("name") in SKIP_STATUS:
+                continue
+            # Eleme turu maçları lig tablosunu etkilemez.
+            season_slug = str((ev.get("season") or {}).get("slug") or "")
+            if season_slug and not any(k in season_slug for k in ("league", "regular")):
+                continue
+            sides = {c["homeAway"]: c for c in comp["competitors"]}
+            start = parse_utc(ev["date"])
+            if state == "post" and now - start > datetime.timedelta(hours=6):
+                continue
+            out.append({
+                "id": str(ev["id"]), "state": state, "start": start,
+                "h": str(sides["home"]["team"]["id"]), "a": str(sides["away"]["team"]["id"]),
+                "hs": int(sides["home"]["score"]), "as": int(sides["away"]["score"]),
+            })
+        except (KeyError, ValueError, TypeError, IndexError):
+            continue
+    return out
+
+
+def overlay(rows, events, base, now):
+    """Resmi tablonun üstüne canlı/bitmiş-ama-henüz-işlenmemiş maçları uygular.
+
+    base: {olay_kimliği: {"h": ev sahibi resmi oynadığı maç, "a": deplasman, "ts": ilk görülme}} (çağrılar arası korunur).
+    Döndürür: (satırlar, canlı_maç_var_mı, bekleyen_maç_var_mı)
+    """
+    by_id = {r["_i"]: r for r in rows}
+    applied, live_any = [], False
+    for ev in events:
+        h, a = by_id.get(ev["h"]), by_id.get(ev["a"])
+        if not h or not a:
+            continue
+        b = base.get(ev["id"])
+        if ev["state"] == "in":
+            live_any = True
+            if b is None:  # canlı görünce resmi tablo maçı henüz içermiyordur: oynanan maç sayılarını kaydet
+                b = base[ev["id"]] = {"h": h["o"], "a": a["o"], "ts": now}
+        elif b is None:
+            continue  # maçın bittiği anı kaçırdık (yeniden başlatma), resmi tabloya güveniriz
+        if h["o"] > b["h"] or a["o"] > b["a"]:  # resmi tablo maçı içerdi
+            base.pop(ev["id"], None)
+            continue
+        applied.append(ev)
+    for k in [k for k, v in base.items() if now - v["ts"] > datetime.timedelta(hours=8)]:
+        base.pop(k, None)
+    if not applied:
+        return rows, live_any, bool(base)
+    out = copy.deepcopy(rows)
+    out_by_id = {r["_i"]: r for r in out}
+    zones = [(r.get("c"), r.get("n")) for r in rows]  # renk ve açıklamalar sıraya bağlıdır, takıma değil
+    for ev in applied:
+        score = "%d-%d" % (ev["hs"], ev["as"])
+        for tid, gf, ga in ((ev["h"], ev["hs"], ev["as"]), (ev["a"], ev["as"], ev["hs"])):
+            t = out_by_id[tid]
+            t["o"] += 1
+            t["gf"] += gf
+            t["ga"] += ga
+            t["gd"] = t["gf"] - t["ga"]
+            if gf > ga:
+                t["w"] += 1
+                t["p"] += 3
+            elif gf == ga:
+                t["d"] += 1
+                t["p"] += 1
+            else:
+                t["l"] += 1
+            t["lv"] = score
+    order = sorted(range(len(out)), key=lambda i: (-out[i]["p"], -out[i]["gd"], -out[i]["gf"], i))
+    out = [out[i] for i in order]
+    for i, r in enumerate(out):
+        r["r"] = i + 1
+        r.pop("c", None)
+        r.pop("n", None)
+        if zones[i][0]:
+            r["c"] = zones[i][0]
+        if zones[i][1]:
+            r["n"] = zones[i][1]
+    return out, live_any, True
+
+
+def public(rows):
+    return [{k: v for k, v in r.items() if not k.startswith("_")} for r in rows]
+
+
+class State:
+    def __init__(self):
+        self.official = {}   # lig -> (satırlar, alınma zamanı)
+        self.base = {}       # lig -> overlay base
+        self.written = {}    # lig -> son yazılan satırlar
+
+
+def cycle(cfg, sb, st, dry):
+    """Bir tur: her lig için resmi tabloyu (gerekirse) yeniler, canlı maçları uygular, değiştiyse yazar. True: canlı/bekleyen var."""
+    now = datetime.datetime.now(UTC)
+    year = season_year(now)
+    busy = False
+    day = lambda d: d.strftime("%Y%m%d")
+    for league, slug in LEAGUES.items():
+        base = st.base.setdefault(league, {})
+        try:
+            events = parse_events(http_json(BOARD % (slug, day(now - datetime.timedelta(days=1)), day(now))), now)
+        except Exception as e:
+            log("skor tablosu okunamadı (%s): %s" % (league, type(e).__name__))
+            events = []
+        cur = st.official.get(league)
+        if cur is None or base or (now - cur[1]).total_seconds() >= OFFICIAL_EVERY:
+            try:
+                rows = parse(http_json(ESPN % (slug, year)))
+                if rows:
+                    st.official[league] = cur = (rows, now)
+            except Exception as e:
+                log("ESPN puan durumu okunamadı (%s): %s" % (league, type(e).__name__))
+        if cur is None:
+            continue
+        rows, live_any, pending = overlay(cur[0], events, base, now)
+        busy = busy or live_any or pending
+        out = public(rows)
+        if dry:
+            print("%s (%s %d): %d takım%s" % (league, slug, year, len(out), "  [CANLI]" if live_any else ""))
+            for r in out[:4]:
+                print("   %2d. %-24s O%d G%d B%d M%d AV%+d P%d %s %s" % (r["r"], r["t"], r["o"], r["w"], r["d"], r["l"], r["gd"], r["p"], r.get("n", ""), ("canlı " + r["lv"]) if r.get("lv") else ""))
+            for r in out:
+                if r.get("lv") and r["r"] > 4:
+                    print("   %2d. %-24s P%d canlı %s" % (r["r"], r["t"], r["p"], r["lv"]))
+            continue
+        if st.written.get(league) == out:
+            continue
+        res = http_json(cfg["supabase_url"] + "/rest/v1/rpc/bot_set_standings", {
+            "p_secret": cfg["bot_secret"], "p_league": league, "p_season": str(year), "p_data": out}, sb)
+        if res and res.get("ok"):
+            st.written[league] = out
+            log("%s: puan durumu yazıldı (%d takım%s)" % (league, len(out), ", canlı" if any(r.get("lv") for r in out) else ""))
+        else:
+            log("%s: yazılamadı: %s" % (league, res))
+    return busy
+
+
 def main():
     dry = "--dry-run" in sys.argv
     cfg = None if dry else load_config()
     sb = None if dry else {"apikey": cfg["supabase_key"]}
-    now = datetime.datetime.now(datetime.timezone.utc)
-    year = season_year(now)
-    old = {}
+    st = State()
     if not dry:
         try:
             for r in http_json(cfg["supabase_url"] + "/rest/v1/standings?select=league,data", headers=sb) or []:
-                old[r["league"]] = r["data"]
+                st.written[r["league"]] = r["data"]
         except Exception as e:
             log("mevcut tablo okunamadı (standings.sql çalıştırıldı mı?): %s" % type(e).__name__)
-    for league, slug in LEAGUES.items():
+    if "--loop" not in sys.argv:
+        cycle(cfg, sb, st, dry)
+        return
+    log("puan durumu servisi başladı")
+    while True:
         try:
-            rows = parse(http_json(ESPN % (slug, year)))
+            busy = cycle(cfg, sb, st, dry)
+        except SystemExit:
+            raise
         except Exception as e:
-            log("ESPN okunamadı (%s): %s" % (league, type(e).__name__))
-            continue
-        if not rows:
-            log("%s: boş tablo, yazılmadı" % league)
-            continue
-        if dry:
-            print("%s (%s %d): %d takım" % (league, slug, year, len(rows)))
-            for r in rows[:4]:
-                print("   %2d. %-24s O%d G%d B%d M%d AV%+d P%d  %s" % (r["r"], r["t"], r["o"], r["w"], r["d"], r["l"], r["gd"], r["p"], r.get("n", "")))
-            continue
-        if old.get(league) == rows:
-            continue
-        r = http_json(cfg["supabase_url"] + "/rest/v1/rpc/bot_set_standings", {
-            "p_secret": cfg["bot_secret"], "p_league": league, "p_season": str(year), "p_data": rows}, sb)
-        if r and r.get("ok"):
-            log("%s: puan durumu yazıldı (%d takım)" % (league, len(rows)))
-        else:
-            log("%s: yazılamadı: %s" % (league, r))
+            log("döngü hatası: %s: %s" % (type(e).__name__, e))
+            busy = False
+        time.sleep(30 if busy else 120)
 
 
 if __name__ == "__main__":
