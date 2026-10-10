@@ -117,6 +117,15 @@ a.link{display:inline}
 .ev .min{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .ev .gi{font-size:.9rem;line-height:1}
 .livemin.ms{color:var(--muted)}
+.std th,.std td{padding:10px 9px}
+.std th.l,.std td.l{text-align:left}
+.std td.rank{padding-left:12px}
+.std td.tm{font-weight:600;max-width:170px;overflow:hidden;text-overflow:ellipsis}
+.std td.sp{font-family:var(--display);font-size:1.3rem;font-weight:700}
+.std tr.club td{background:var(--accent-soft);font-weight:700}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.78rem;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+@media (max-width:520px){.tab{padding:8px 9px;font-size:.9rem;letter-spacing:.02em}.std .hm{display:none}.std th,.std td{padding:10px 6px}}
 .cd{display:inline-flex;align-items:center;gap:5px;font-family:var(--display);font-weight:700;font-size:1rem;color:var(--ink);font-variant-numeric:tabular-nums}
 .cd i{display:inline-block;width:11px;height:15px;border-radius:2.5px;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .cd i.y{background:#f7c600}
@@ -256,6 +265,8 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" data-tab="matches" aria-selected="true">Maçlar</button>
     <button class="tab" role="tab" data-tab="board" aria-selected="false">Sıralama</button>
+    <button class="tab" role="tab" data-tab="super" aria-selected="false">Süper Lig</button>
+    <button class="tab" role="tab" data-tab="euro" aria-selected="false">Avrupa</button>
     <button class="tab" role="tab" data-tab="admin" aria-selected="false" id="adminTab" hidden>Yönetim</button>
   </div>
 
@@ -304,6 +315,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   var auth=null, adminPass=null, loading=true, loadError="";
   var BOT="uclu_tahmin_bot", tgLinked={};
   var matches=[], preds={}, players={}, lastSig="";
+  var stand={}, standAt=0, standBusy=false, euro="uel";
   var tab="matches", filter="all", sub="up", drafts={}, flash={}, pendingDelete=null;
   var el=function(id){return document.getElementById(id)};
   var isAdmin=function(){return !!adminPass};
@@ -428,6 +440,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     else if(loading)v.innerHTML='<div class="empty">Yükleniyor…</div>';
     else if(loadError)v.innerHTML='<div class="empty">'+esc(loadError)+'</div>';
     else if(tab==="board")v.innerHTML=boardHtml();
+    else if(tab==="super"||tab==="euro"){v.innerHTML=standingsHtml();ensureStandings()}
     else if(tab==="admin"&&isAdmin())v.innerHTML=adminHtml();
     else v.innerHTML=matchesHtml();
     renderChatFoot();updateChatUI(false);
@@ -527,6 +540,35 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
       '<div class="board">'+teamHtml(m.home,"",showCards?cardsHtml(m.hy,m.hr):undefined)+center+teamHtml(m.away,"away",showCards?cardsHtml(m.ay,m.ar):undefined)+'</div>'+(showCards?evsHtml(m):"")+foot+others+'</article>';
   }
 
+  /* ---------- puan durumları (Süper Lig, Avrupa kupaları) ---------- */
+  var NOTE_TR={"Champions League":"Şampiyonlar Ligi","Champions League qualifying":"Şampiyonlar Ligi eleme","Europa League":"Avrupa Ligi","Europa League qualifying":"Avrupa Ligi eleme","Conference League":"Konferans Ligi","Conference League qualifying":"Konferans Ligi eleme","Europa Conference League qualifying":"Konferans Ligi eleme","Relegation":"Küme düşme","Qualifies for round of 16":"Son 16'ya doğrudan","Knockout phase playoffs":"Play-off","Knockout phase playoffs - seeded":"Play-off (seri başı)","Eliminated":"Elendi"};
+  function ensureStandings(){
+    if(standBusy||Date.now()-standAt<300000)return;
+    standBusy=true;
+    sb("/rest/v1/standings?select=*").then(function(rows){
+      stand={};(rows||[]).forEach(function(r){stand[r.league]=r});standAt=Date.now();standBusy=false;render();
+    }).catch(function(){standAt=Date.now()-240000;standBusy=false;render()});
+  }
+  function standingsHtml(){
+    var names={super:"Süper Lig",ucl:"Şampiyonlar Ligi",uel:"Avrupa Ligi",uecl:"Konferans Ligi"};
+    var key=tab==="super"?"super":euro, h="";
+    if(tab==="euro")h+='<div class="chips">'+["ucl","uel","uecl"].map(function(k){return '<button class="chip" data-euro="'+k+'" aria-pressed="'+(euro===k)+'">'+names[k]+'</button>'}).join("")+'</div>';
+    var s=stand[key], rows=s&&Array.isArray(s.data)?s.data:[];
+    if(!rows.length)return h+'<div class="empty">'+(standAt?'<b>'+names[key]+' puan durumu henüz yok.</b><br>Raspberry Pi üzerindeki <code>sync_standings.py</code> çalışınca burada görünür.':'Yükleniyor…')+'</div>';
+    var hex=/^#[0-9a-fA-F]{6}$/, seen={}, legend="";
+    h+='<div class="tablebox"><table class="std"><thead><tr><th>#</th><th class="l">Takım</th><th>O</th><th>G</th><th>B</th><th>M</th><th class="hm">A</th><th class="hm">Y</th><th>AV</th><th>P</th></tr></thead><tbody>';
+    rows.forEach(function(r){
+      var k=teamKey(r.t), c=hex.test(r.c||"")?r.c:"";
+      if(c&&r.n&&!seen[r.n]){seen[r.n]=1;legend+='<span><i style="background:'+c+'"></i>'+esc(NOTE_TR[r.n]||r.n)+'</span>'}
+      var gd=(+r.gd||0)>0?"+"+r.gd:String(+r.gd||0);
+      h+='<tr class="'+(k?"club":"")+'"><td class="rank"'+(c?' style="box-shadow:inset 4px 0 0 '+c+'"':'')+'>'+(+r.r||"")+'</td><td class="l tm">'+(k?'<span class="dot '+k+'"></span> ':'')+esc(r.t)+'</td><td>'+(+r.o||0)+'</td><td>'+(+r.w||0)+'</td><td>'+(+r.d||0)+'</td><td>'+(+r.l||0)+'</td><td class="hm">'+(+r.gf||0)+'</td><td class="hm">'+(+r.ga||0)+'</td><td>'+gd+'</td><td class="sp">'+(+r.p||0)+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+    if(legend)h+='<div class="legend">'+legend+'</div>';
+    var yr=+s.season, sez=yr?yr+"-"+String((yr+1)%100).padStart(2,"0"):"";
+    h+='<p class="state">'+names[key]+(sez?" "+sez:"")+(s.updated_at?' · Son güncelleme: '+fmtDate(Date.parse(s.updated_at)):'')+'</p>';
+    return h;
+  }
   function boardHtml(){
     var ids={};Object.keys(players).forEach(function(i){ids[i]=1});
     var mm={};matches.forEach(function(m){mm[m.id]=m});
@@ -711,8 +753,9 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 
   /* ---------- olaylar ---------- */
   document.addEventListener("click",function(e){
-    var t=e.target.closest("[data-tab],[data-sub],[data-filter],[data-action]");if(!t)return;
+    var t=e.target.closest("[data-tab],[data-sub],[data-euro],[data-filter],[data-action]");if(!t)return;
     if(t.dataset.tab){tab=t.dataset.tab;render();return}
+    if(t.dataset.euro){euro=t.dataset.euro;render();return}
     if(t.dataset.sub){sub=t.dataset.sub;render();return}
     if(t.dataset.filter){filter=t.dataset.filter;render();return}
     var a=t.dataset.action,m=t.dataset.m;
