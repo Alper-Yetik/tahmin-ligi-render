@@ -341,9 +341,11 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   function isLive(m){
     return !finished(m)&&typeof m.lh==="number"&&typeof m.la==="number"&&(m.lst==="live"||m.lst==="ht"||m.lst==="ft")&&started(m)&&Date.now()-m.lupd<10*60*1000;
   }
+  /* Bitti diye işaretlenmiş ama kesin skoru henüz yazılmamış maç: son canlı skor geçici sonuç sayılır. */
+  function provisional(m){return !finished(m)&&!isLive(m)&&started(m)&&m.lst==="ft"&&typeof m.lh==="number"&&typeof m.la==="number"}
   function effRes(m){
     if(finished(m))return {hs:m.hs,as:m.as,live:false};
-    if(isLive(m))return {hs:m.lh,as:m.la,live:true};
+    if(isLive(m)||provisional(m))return {hs:m.lh,as:m.la,live:true};
     return null;
   }
   function liveLabel(m){return m.lst==="ht"?"DEVRE ARASI":m.lst==="ft"?"MAÇ BİTTİ":"CANLI"}
@@ -438,8 +440,8 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   function matchesHtml(){
     var list=matches.filter(function(m){return filter==="all"||teamKey(m.home)===filter||teamKey(m.away)===filter});
     var liveList=list.filter(isLive).sort(function(a,b){return a.kickoff-b.kickoff});
-    var up=list.filter(function(m){return !finished(m)&&!isLive(m)}).sort(function(a,b){return a.kickoff-b.kickoff});
-    var done=list.filter(finished).sort(function(a,b){return b.kickoff-a.kickoff});
+    var up=list.filter(function(m){return !finished(m)&&!isLive(m)&&!started(m)}).sort(function(a,b){return a.kickoff-b.kickoff});
+    var done=list.filter(function(m){return finished(m)||(!isLive(m)&&started(m))}).sort(function(a,b){return b.kickoff-a.kickoff});
     var h=filterChips();
     if(!matches.length){
       h+='<div class="empty"><b>Henüz maç eklenmemiş.</b><br>'+(isAdmin()?'Yönetim sekmesinden ilk maçı ekle.':'Yönetici maçları ekleyince burada tahmin girebileceksin.')+'</div>';
@@ -454,12 +456,14 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   }
 
   function matchCard(m){
-    var mine=auth?predFor(m.id,auth.id):null, locked=closed(m)||!auth||!!mine, fin=finished(m), lv=isLive(m);
+    var mine=auth?predFor(m.id,auth.id):null, locked=closed(m)||!auth||!!mine, fin=finished(m), lv=isLive(m), pv=provisional(m);
     var d=drafts[m.id]||{};
     var hv=d.h!==undefined?d.h:(mine?mine.h:""), av=d.a!==undefined?d.a:(mine?mine.a:"");
     var center;
     if(fin){
       center='<div class="score"><span class="final">'+m.hs+' - '+m.as+'</span></div>';
+    } else if(pv){
+      center='<div class="score livecol"><span class="final">'+m.lh+' - '+m.la+'</span><span class="livemin">MS · kesinleşmedi</span></div>';
     } else if(lv){
       center='<div class="score livecol"><span class="final livefinal">'+m.lh+' - '+m.la+'</span><span class="livemin">'+esc(liveMinute(m))+'</span>'+(m.lst==="live"&&m.ladd>0?'<span class="liveadd">Uzatma: '+m.ladd+' dk</span>':'')+'</div>';
     } else {
@@ -473,6 +477,9 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     } else if(lv){
       var lpt=score(mine,m);
       foot='<div class="foot">'+(mine?'<span class="state">Tahminin: <b>'+mine.h+' - '+mine.a+'</b></span> <span class="pts live '+(lpt?"":"zero")+'">+'+lpt+' şimdilik</span>':'<span class="state">Tahmin girmedin</span>')+'</div>';
+    } else if(pv){
+      var ppt=score(mine,m);
+      foot='<div class="foot">'+(mine?'<span class="state">Tahminin: <b>'+mine.h+' - '+mine.a+'</b></span> <span class="pts '+(ppt?"":"zero")+'">+'+ppt+' (kesinleşmedi)</span>':'<span class="state">Tahmin girmedin</span>')+'</div>';
     } else if(closed(m)){
       foot='<div class="foot">'+(mine?'<span class="state">Tahminin: <b>'+mine.h+' - '+mine.a+'</b> · '+(started(m)?'Maç başladı, sonuç bekleniyor':'Tahminler kapandı')+'</span>':'<span class="state warn">Tahmin süresi doldu (maçtan 5 saat önce kapanır)</span>')+'</div>';
     } else if(!auth){
@@ -493,7 +500,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
       }).join("")+'</div>';
     }
     var closing=(!fin&&!closed(m))?' · Tahmin kapanışı: '+fmtDate(m.kickoff-LOCK_MS):'';
-    var showCards=fin||lv;
+    var showCards=fin||lv||pv;
     var badge=lv?'<span class="livebadge">● '+esc(liveLabel(m))+'</span> · ':'';
     return '<article class="match"><div class="meta"><span class="comp '+compCls(m.comp)+'">'+esc(m.comp)+'</span><span>'+badge+fmtDate(m.kickoff)+esc(closing)+'</span></div>'+
       '<div class="board">'+teamHtml(m.home,"",showCards?cardsHtml(m.hy,m.hr):undefined)+center+teamHtml(m.away,"away",showCards?cardsHtml(m.ay,m.ar):undefined)+'</div>'+foot+others+'</article>';
