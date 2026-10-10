@@ -44,6 +44,7 @@ Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspb
    Render (statik site)                                           ├─ bot.py (Telegram, sürekli servis)
                                                                   ├─ sync_fixtures.py (yeni maçlar, saatlik)
                                                                   ├─ live_scores.py (canlı skor, gol/kart olayları, kesin skor; sürekli servis)
+                                                                  ├─ sync_standings.py (puan durumları, saatlik)
                                                                   └─ update_scores.py (uzatmalı/penaltılı maçların skoru, 2 dk'da bir)
 ```
 
@@ -54,6 +55,7 @@ Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspb
 | `telegram-bot/bot.py` | Telegram: oyuncuyu bağlar, tahmin girmeyenlere hatırlatma atar | Raspberry Pi (systemd servisi) |
 | `telegram-bot/sync_fixtures.py` | ESPN'den yeni maçları ekler | Raspberry Pi (cron) |
 | `telegram-bot/live_scores.py` | Sürmekte olan maçların canlı skorunu, gol/kart olaylarını yazar, maç bitince kesin skoru girer | Raspberry Pi (systemd servisi: `tahmin-live`) |
+| `telegram-bot/sync_standings.py` | Süper Lig ve Avrupa kupalarının puan durumunu ESPN'den çekip yazar (sitedeki **Süper Lig** ve **Avrupa** sekmeleri) | Raspberry Pi (cron, saatte bir) |
 | `update_scores.py` | ESPN'den biten maçların skorunu yazar (`live_scores.py`'nin bırakmadığı uzatmalı/penaltılı maçlar için) | Raspberry Pi (cron), bu depoda yok |
 
 ### Veritabanı güvenliği
@@ -70,7 +72,7 @@ Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspb
 ### 1. Supabase
 
 1. supabase.com'da proje oluştur.
-2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `events.sql`, `chat.sql`.
+2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `events.sql`, `standings.sql`, `chat.sql`.
 3. Yönetici şifresini belirle (`BURAYA_SIFRE` yerine kendi şifren):
 
 ```sql
@@ -143,6 +145,23 @@ tail -20 ~/tahmin-bot/live.log
 Servis kullanırsan cron'daki `live_scores.py` satırını kaldır (`crontab -e`), ikisi aynı anda çalışmasın. Cron ile en sık dakikada bir çalışır:
 `* * * * * /usr/bin/flock -n /tmp/tahmin-live.lock /usr/bin/python3 /home/alper/tahmin-bot/live_scores.py`.
 ESPN'in canlı verisi zaten yaklaşık 30-60 saniyede bir yenilenir, 20 saniyeden sık sormanın faydası yoktur.
+
+## Puan durumları
+
+Sitenin üstündeki **Süper Lig** ve **Avrupa** sekmeleri güncel puan durumunu gösterir. Avrupa sekmesinde Şampiyonlar Ligi, Avrupa Ligi ve Konferans Ligi arasında geçiş yapılır (açılışta Avrupa Ligi). Fenerbahçe, Galatasaray ve Beşiktaş satırları vurgulanır, renkli şeritler ve altındaki açıklama (Şampiyonlar Ligi, play-off, küme düşme vb.) ESPN'den gelir. Telefonda A/Y (atılan/yenilen gol) sütunları gizlenir.
+
+Veriyi Raspberry'deki `sync_standings.py` ESPN'den çeker ve Supabase'deki `standings` tablosuna yazar. Sadece değişen tabloyu yazar. Kurulum: `standings.sql`'i Supabase'de bir kez çalıştır, sonra:
+
+```bash
+cd ~/tahmin-bot
+curl -fsSLO https://raw.githubusercontent.com/Alper-Yetik/tahmin-ligi-render/main/telegram-bot/sync_standings.py
+python3 sync_standings.py --dry-run     # önce dene, hiçbir şey yazmaz
+python3 sync_standings.py               # tabloları yazar
+(crontab -l 2>/dev/null; echo "17 * * * * /usr/bin/python3 /home/alper/tahmin-bot/sync_standings.py") | crontab -
+tail -20 ~/tahmin-bot/standings.log
+```
+
+Sezon yılı otomatik bulunur (Temmuz'dan itibaren yeni sezon). Takım adları ESPN'de İngilizce harfle gelir, `sync_standings.py` içindeki `NAMES` listesinde olanlar Türkçe yazılır (ör. Kasimpasa → Kasımpaşa), eksik olanı oraya ekleyebilirsin.
 
 ## Telegram hatırlatması
 
