@@ -26,7 +26,7 @@ LOG_FILE = os.path.join(BASE, "standings.log")
 UTC = datetime.timezone.utc
 LEAGUES = {"super": "tur.1", "ucl": "uefa.champions", "uel": "uefa.europa", "uecl": "uefa.europa.conf"}
 ESPN = "https://site.api.espn.com/apis/v2/sports/soccer/%s/standings?season=%d"
-BOARD = "https://site.api.espn.com/apis/site/v2/sports/soccer/%s/scoreboard?dates=%s-%s"
+BOARD = "https://site.api.espn.com/apis/site/v2/sports/soccer/%s/scoreboard?dates=%s"  # ESPN tarih aralığına 400 verir, gün gün sorulur
 SKIP_STATUS = ("STATUS_POSTPONED", "STATUS_CANCELED", "STATUS_ABANDONED", "STATUS_FORFEIT", "STATUS_SUSPENDED")
 OFFICIAL_EVERY = 300  # resmi tabloyu en az bu kadar saniyede bir yenile (bekleyen maç varsa her turda)
 
@@ -222,11 +222,12 @@ def cycle(cfg, sb, st, dry):
     day = lambda d: d.strftime("%Y%m%d")
     for league, slug in LEAGUES.items():
         base = st.base.setdefault(league, {})
-        try:
-            events = parse_events(http_json(BOARD % (slug, day(now - datetime.timedelta(days=1)), day(now))), now)
-        except Exception as e:
-            log("skor tablosu okunamadı (%s): %s" % (league, type(e).__name__))
-            events = []
+        events = []
+        for d in (now - datetime.timedelta(days=1), now):
+            try:
+                events += parse_events(http_json(BOARD % (slug, day(d))), now)
+            except Exception as e:
+                log("skor tablosu okunamadı (%s %s): %s %s" % (league, day(d), type(e).__name__, getattr(e, "code", "")))
         cur = st.official.get(league)
         if cur is None or base or (now - cur[1]).total_seconds() >= OFFICIAL_EVERY:
             try:
