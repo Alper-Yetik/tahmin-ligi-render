@@ -542,7 +542,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   }
 
   /* ---------- puan durumları (Süper Lig, Avrupa kupaları) ---------- */
-  var NOTE_TR={"Champions League":"Şampiyonlar Ligi","Champions League qualifying":"Şampiyonlar Ligi eleme","Europa League":"Avrupa Ligi","Europa League qualifying":"Avrupa Ligi eleme","Conference League":"Konferans Ligi","Conference League qualifying":"Konferans Ligi eleme","Europa Conference League qualifying":"Konferans Ligi eleme","Relegation":"Küme düşme","Qualifies for round of 16":"Son 16'ya doğrudan","Knockout phase playoffs":"Play-off","Knockout phase playoffs - seeded":"Play-off (seri başı)","Eliminated":"Elendi"};
+  var NOTE_TR={"Champions League":"Şampiyonlar Ligi","Champions League qualifying":"Şampiyonlar Ligi eleme","Europa League":"Avrupa Ligi","Europa League qualifying":"Avrupa Ligi eleme","Conference League":"Konferans Ligi","Conference League qualifying":"Konferans Ligi eleme","Europa Conference League qualifying":"Konferans Ligi eleme","Relegation":"Küme düşme","Relegated":"Küme düşme","Relegation playoff":"Küme düşme play-off","Promoted":"Yükselme","Qualifies for knockout phase playoffs":"Play-off","Qualifies for round of 16 playoffs":"Play-off","Qualifies for knockout phase":"Eleme turu","Qualifies for round of 16":"Son 16'ya doğrudan","Knockout phase playoffs":"Play-off","Knockout phase playoffs - seeded":"Play-off (seri başı)","Eliminated":"Elendi"};
   function standLive(){return Object.keys(stand).some(function(k){return (stand[k].data||[]).some(function(r){return r.lv})})}
   /* Canlı maç varken 15 sn'de, yokken 60 sn'de bir yeniler. Veri değişmediyse sayfayı yeniden çizmez. */
   function ensureStandings(){
