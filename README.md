@@ -10,6 +10,7 @@ Canlı site: https://tahmin-ligi-render.onrender.com/
 - **Her maça tek tahmin.** Kaydedilince kilitlenir, değiştirilemez, silinemez (yönetici hariç).
 - **Maçtan 5 saat önce kapanır.** Örneğin 20:00'de başlayan maça 15:00'e kadar tahmin girilir. Kural veritabanında uygulanır, tarayıcıdan atlatılamaz.
 - **Herkesin tahmini maç kartında görünür.**
+- **Maçlar sekmesi:** Canlı maçlar en üstte durur, altında **Oynanacak** ve **Oynanan** yan yana iki sekme vardır (parantez içinde maç sayısı). Biten maçta skorun altında **MS** (maç sonu) yazar.
 - **Saatler Türkiye saatidir (TSİ).**
 
 ### Puanlama
