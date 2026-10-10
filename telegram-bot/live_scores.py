@@ -134,6 +134,32 @@ def count_cards(comp):
     return n["home"][0], n["home"][1], n["away"][0], n["away"][1]
 
 
+def extract_events(comp):
+    """Gol ve kart olaylarını oyuncu adıyla çıkarır.
+    Döndürür: [{"k": "goal|pen|own|yellow|red", "m": "45'+2'", "p": "Oyuncu", "s": "home|away"}]"""
+    team_side = {str((x.get("team") or {}).get("id")): x["homeAway"] for x in comp["competitors"]}
+    out = []
+    for d in comp.get("details") or []:
+        if d.get("shootout"):
+            continue
+        side = team_side.get(str((d.get("team") or {}).get("id")))
+        if side is None:
+            continue
+        if d.get("scoringPlay"):
+            k = "own" if d.get("ownGoal") else "pen" if d.get("penaltyKick") else "goal"
+        elif d.get("redCard"):
+            k = "red"
+        elif d.get("yellowCard"):
+            k = "yellow"
+        else:
+            continue
+        who = (d.get("athletesInvolved") or [{}])[0] or {}
+        name = (who.get("displayName") or who.get("fullName") or who.get("shortName") or "")[:40]
+        minute = ((d.get("clock") or {}).get("displayValue") or "")[:12]
+        out.append({"k": k, "m": minute, "p": name, "s": side})
+    return out[:60]
+
+
 ADDED_RE = re.compile(r"announced\s+(\d+)\s+minutes?\s+of\s+added\s+time", re.I)
 
 
@@ -235,6 +261,7 @@ def main():
         period = comp["status"].get("period")
         minute = norm_minute(comp["status"].get("displayClock"), period)
         cards = count_cards(comp)
+        events = extract_events(comp)
         # Uzatma süresi sadece oyun sürerken okunur (devre arası ve bitişte gösterilmez).
         added = fetch_added(found["id"], period) if st == "live" else None
         old_cards = (m.get("home_yellow"), m.get("home_red"), m.get("away_yellow"), m.get("away_red"))
@@ -243,6 +270,8 @@ def main():
         if dry:
             print("%s: %s %d-%d %s kartlar(ev sarı/kırmızı, dep sarı/kırmızı)=%s uzatma=%s %s%s" % (
                 m["id"], st, hs, as_, minute, cards, added, "(skor değişti)" if changed else "", " [skor zaten kesin]" if final else ""))
+            for e in events:
+                print("   olay: %s %s %s (%s)" % (e["m"], e["k"], e["p"], e["s"]))
             continue
         if not final:
             r = http_json(cfg["supabase_url"] + "/rest/v1/rpc/bot_set_live", {
@@ -269,6 +298,14 @@ def main():
                 log("kart/uzatma yazılamadı %s: %s" % (m["id"], r))
             else:
                 log("%s: kartlar=%s uzatma=%s" % (m["id"], cards, added))
+        # Gol/kart olayları (oyuncu adlarıyla). events.sql çalıştırılmadıysa sütun yoktur, atlanır.
+        if "live_events" in m and events != (m.get("live_events") or []):
+            r = http_json(cfg["supabase_url"] + "/rest/v1/rpc/bot_set_events", {
+                "p_secret": cfg["bot_secret"], "p_id": m["id"], "p_events": events}, sb)
+            if not (r and r.get("ok")):
+                log("olaylar yazılamadı %s: %s" % (m["id"], r))
+            else:
+                log("%s: %d olay yazıldı" % (m["id"], len(events)))
     return True
 
 
