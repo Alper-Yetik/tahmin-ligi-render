@@ -148,7 +148,7 @@ ESPN'in canlı verisi zaten yaklaşık 30-60 saniyede bir yenilenir, 20 saniyede
 
 ## Puan durumları
 
-Sitenin üstündeki **Süper Lig** ve **Avrupa** sekmeleri güncel puan durumunu gösterir. Avrupa sekmesinde Şampiyonlar Ligi, Avrupa Ligi ve Konferans Ligi arasında geçiş yapılır (açılışta Avrupa Ligi). Fenerbahçe, Galatasaray ve Beşiktaş satırları vurgulanır, renkli şeritler ve altındaki açıklama (Şampiyonlar Ligi, play-off, küme düşme vb.) ESPN'den gelir. Telefonda A/Y (atılan/yenilen gol) sütunları gizlenir.
+Sitenin üstündeki **Süper Lig** ve **Avrupa** sekmeleri güncel puan durumunu gösterir. Avrupa sekmesinde Şampiyonlar Ligi, Avrupa Ligi ve Konferans Ligi arasında geçiş yapılır (açılışta Şampiyonlar Ligi). Fenerbahçe, Galatasaray ve Beşiktaş satırları vurgulanır, renkli şeritler ve altındaki açıklama (Şampiyonlar Ligi, play-off, küme düşme vb.) ESPN'den gelir. Telefonda A/Y (atılan/yenilen gol) sütunları gizlenir.
 
 Veriyi Raspberry'deki `sync_standings.py` ESPN'den çeker ve Supabase'deki `standings` tablosuna yazar. Sürekli servis olarak (`tahmin-standings`) çalışır: maç sürerken 30 saniyede bir, maç yokken 2 dakikada bir bakar ve sadece değişen tabloyu yazar.
 
