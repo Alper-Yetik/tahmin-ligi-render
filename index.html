@@ -106,6 +106,16 @@ a.link{display:inline}
 .teamwrap.away{align-items:flex-end}
 .cards{display:flex;gap:10px;min-height:0}
 .cards:empty{display:none}
+.subtabs{display:flex;gap:8px}
+.sub{flex:1;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:11px 14px;font-family:var(--display);font-size:1.05rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.sub:hover{color:var(--ink)}
+.sub[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.evs{display:flex;flex-direction:column;gap:4px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:.82rem}
+.ev{display:flex;align-items:center;gap:6px;min-width:0;max-width:calc(50% - 7px)}
+.ev.away{margin-left:auto;flex-direction:row-reverse;justify-content:flex-start;text-align:right}
+.ev b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.ev .min{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ev .gi{font-size:.9rem;line-height:1}
 .cd{display:inline-flex;align-items:center;gap:5px;font-family:var(--display);font-weight:700;font-size:1rem;color:var(--ink);font-variant-numeric:tabular-nums}
 .cd i{display:inline-block;width:11px;height:15px;border-radius:2.5px;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .cd i.y{background:#f7c600}
@@ -293,7 +303,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   var auth=null, adminPass=null, loading=true, loadError="";
   var BOT="uclu_tahmin_bot", tgLinked={};
   var matches=[], preds={}, players={}, lastSig="";
-  var tab="matches", filter="all", drafts={}, flash={}, pendingDelete=null;
+  var tab="matches", filter="all", sub="up", drafts={}, flash={}, pendingDelete=null;
   var el=function(id){return document.getElementById(id)};
   var isAdmin=function(){return !!adminPass};
 
@@ -329,6 +339,15 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     if(y>0)h+='<span class="cd" title="'+y+' sarı kart" aria-label="'+y+' sarı kart"><i class="y"></i>'+y+'</span>';
     if(r>0)h+='<span class="cd" title="'+r+' kırmızı kart" aria-label="'+r+' kırmızı kart"><i class="r"></i>'+r+'</span>';
     return h;
+  }
+  /* Gol ve kart olayları oyuncu adlarıyla: ev sahibi solda, deplasman sağda, zaman sırasıyla. */
+  function evsHtml(m){
+    if(!m.ev||!m.ev.length)return "";
+    return '<div class="evs">'+m.ev.map(function(e){
+      var ic=e.k==="yellow"?'<span class="cd"><i class="y"></i></span>':e.k==="red"?'<span class="cd"><i class="r"></i></span>':'<span class="gi">⚽</span>';
+      var note=e.k==="own"?' (k.k.)':e.k==="pen"?' (P)':'';
+      return '<div class="ev '+(e.s==="away"?"away":"home")+'">'+ic+'<b>'+esc(e.p||"?")+note+'</b><span class="min">'+esc(fmtMin(e.m))+'</span></div>';
+    }).join("")+'</div>';
   }
   function fmtDate(ms){try{return new Date(ms).toLocaleString("tr-TR",{timeZone:"Europe/Istanbul",weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}catch(e){return ""}}
   var LOCK_MS=5*3600*1000;
@@ -384,7 +403,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
       loadError="";
       if(sig!==lastSig||loading){
         lastSig=sig;
-        matches=r[0].map(function(x){return {id:x.id,home:x.home,away:x.away,comp:x.comp,kickoff:Date.parse(x.kickoff),hs:x.home_score,as:x.away_score,lh:x.live_home,la:x.live_away,lmin:x.live_minute,lst:x.live_state,lupd:x.live_updated?Date.parse(x.live_updated):0,ladd:x.live_added,hy:x.home_yellow,hr:x.home_red,ay:x.away_yellow,ar:x.away_red}});
+        matches=r[0].map(function(x){return {id:x.id,home:x.home,away:x.away,comp:x.comp,kickoff:Date.parse(x.kickoff),hs:x.home_score,as:x.away_score,lh:x.live_home,la:x.live_away,lmin:x.live_minute,lst:x.live_state,lupd:x.live_updated?Date.parse(x.live_updated):0,ladd:x.live_added,hy:x.home_yellow,hr:x.home_red,ay:x.away_yellow,ar:x.away_red,ev:Array.isArray(x.live_events)?x.live_events:[]}});
         preds={};r[1].forEach(function(x){preds[x.match_id+"_"+x.player_id]={m:x.match_id,u:x.player_id,h:x.h,a:x.a}});
         players={};r[2].forEach(function(x){players[x.id]=x.nick});
         tgLinked={};r[3].forEach(function(x){tgLinked[x.player_id]=1});
@@ -449,8 +468,9 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
       h+='<div class="empty">Bu takım için maç yok.</div>';
     } else {
       if(liveList.length){h+='<h2 class="sec live">Canlı maçlar</h2><div class="list">'+liveList.map(matchCard).join("")+'</div>'}
-      if(up.length){h+='<h2 class="sec">Oynanacak maçlar</h2><div class="list">'+up.map(matchCard).join("")+'</div>'}
-      if(done.length){h+='<h2 class="sec">Oynanan maçlar</h2><div class="list">'+done.map(matchCard).join("")+'</div>'}
+      h+='<div class="subtabs" role="tablist"><button class="sub" role="tab" data-sub="up" aria-selected="'+(sub==="up")+'">Oynanacak ('+up.length+')</button><button class="sub" role="tab" data-sub="done" aria-selected="'+(sub==="done")+'">Oynanan ('+done.length+')</button></div>';
+      var cur=sub==="done"?done:up;
+      h+=cur.length?'<div class="list">'+cur.map(matchCard).join("")+'</div>':'<div class="empty">'+(sub==="done"?"Henüz oynanan maç yok.":"Oynanacak maç yok.")+'</div>';
     }
     return h+rulesHtml();
   }
@@ -503,7 +523,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     var showCards=fin||lv||pv;
     var badge=lv?'<span class="livebadge">● '+esc(liveLabel(m))+'</span> · ':'';
     return '<article class="match"><div class="meta"><span class="comp '+compCls(m.comp)+'">'+esc(m.comp)+'</span><span>'+badge+fmtDate(m.kickoff)+esc(closing)+'</span></div>'+
-      '<div class="board">'+teamHtml(m.home,"",showCards?cardsHtml(m.hy,m.hr):undefined)+center+teamHtml(m.away,"away",showCards?cardsHtml(m.ay,m.ar):undefined)+'</div>'+foot+others+'</article>';
+      '<div class="board">'+teamHtml(m.home,"",showCards?cardsHtml(m.hy,m.hr):undefined)+center+teamHtml(m.away,"away",showCards?cardsHtml(m.ay,m.ar):undefined)+'</div>'+(showCards?evsHtml(m):"")+foot+others+'</article>';
   }
 
   function boardHtml(){
@@ -690,8 +710,9 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 
   /* ---------- olaylar ---------- */
   document.addEventListener("click",function(e){
-    var t=e.target.closest("[data-tab],[data-filter],[data-action]");if(!t)return;
+    var t=e.target.closest("[data-tab],[data-sub],[data-filter],[data-action]");if(!t)return;
     if(t.dataset.tab){tab=t.dataset.tab;render();return}
+    if(t.dataset.sub){sub=t.dataset.sub;render();return}
     if(t.dataset.filter){filter=t.dataset.filter;render();return}
     var a=t.dataset.action,m=t.dataset.m;
     if(a==="sendChat")sendChat();
