@@ -543,6 +543,11 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 
   /* ---------- puan durumları (Süper Lig, Avrupa kupaları) ---------- */
   var NOTE_TR={"Champions League":"Şampiyonlar Ligi","Champions League qualifying":"Şampiyonlar Ligi eleme","Europa League":"Avrupa Ligi","Europa League qualifying":"Avrupa Ligi eleme","Conference League":"Konferans Ligi","Conference League qualifying":"Konferans Ligi eleme","Europa Conference League qualifying":"Konferans Ligi eleme","Relegation":"Küme düşme","Relegated":"Küme düşme","Relegation playoff":"Küme düşme play-off","Promoted":"Yükselme","Qualifies for knockout phase playoffs":"Play-off","Qualifies for round of 16 playoffs":"Play-off","Qualifies for knockout phase":"Eleme turu","Qualifies for round of 16":"Son 16'ya doğrudan","Knockout phase playoffs":"Play-off","Knockout phase playoffs - seeded":"Play-off (seri başı)","Eliminated":"Elendi"};
+  var EURO_ICO={
+    ucl:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>',
+    uel:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M8 20h8M10 17h4"/></svg>',
+    uecl:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15M5 19l8-8"/></svg>'
+  };
   function noteTr(n){
     var t=String(n),l=t.toLowerCase();
     if(NOTE_TR[t])return NOTE_TR[t];
@@ -565,7 +570,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   function standingsHtml(){
     var names={super:"Süper Lig",ucl:"Şampiyonlar Ligi",uel:"Avrupa Ligi",uecl:"Konferans Ligi"};
     var key=tab==="super"?"super":euro, h="";
-    if(tab==="euro")h+='<div class="chips">'+["ucl","uel","uecl"].map(function(k){return '<button class="chip" data-euro="'+k+'" aria-pressed="'+(euro===k)+'">'+names[k]+'</button>'}).join("")+'</div>';
+    if(tab==="euro")h+='<div class="chips">'+["ucl","uel","uecl"].map(function(k){return '<button class="chip" data-euro="'+k+'" aria-pressed="'+(euro===k)+'">'+EURO_ICO[k]+names[k]+'</button>'}).join("")+'</div>';
     var s=stand[key], rows=s&&Array.isArray(s.data)?s.data:[];
     if(!rows.length)return h+'<div class="empty">'+(standAt?'<b>'+names[key]+' puan durumu henüz yok.</b><br>Raspberry Pi üzerindeki <code>sync_standings.py</code> çalışınca burada görünür.':'Yükleniyor…')+'</div>';
     var hex=/^#[0-9a-fA-F]{6}$/, seen={}, legend="";
