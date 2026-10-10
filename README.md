@@ -127,7 +127,7 @@ Giriş sadece ad olduğu için biri başkasının adıyla yazabilir. Tablo (`cha
 - Site canlı maçı "Canlı maçlar" bölümünde kırmızı skor ve dakika ile gösterir, tahminlerin yanında **şimdilik** kazanılan puanı yazar ve **Sıralama** sekmesini şimdiki skora göre hesaplar. Canlı maç varken sayfa 15 saniyede bir yenilenir.
 - **Kartlar:** Maç kartında her takımın adının üstünde sarı ve kırmızı kart sayısı görünür (kart yoksa hiçbir şey görünmez). Canlıyken güncellenir, maç bittikten sonra da kalır. Betik kartları ESPN'in maç olaylarından sayar.
 - **Uzatma süresi:** Dördüncü hakem uzatmayı gösterince canlı maçta dakikanın altında "Uzatma: 4 dk" yazar. Bu bilgi ESPN'in maç yorumundaki "Fourth official has announced N minutes of added time" satırından okunur. Dakika `45+2'` gibi, uzatmada geçen süreyi gösterir.
-- Canlı puanlar geçicidir. Maç bitince `update_scores.py` kesin skoru yazar ve puanlar kesinleşir. Canlı veri 10 dakikadır güncellenmediyse (Raspberry kapalı vb.) site onu canlı saymaz.
+- Canlı puanlar geçicidir. Maç normal sürede bitince `live_scores.py` kesin skoru kendisi yazar (uzatmalı/penaltılı maçları `update_scores.py`'ye ya da Yönetim sekmesine bırakır) ve puanlar kesinleşir. Canlı veri 10 dakikadır güncellenmediyse site onu canlı saymaz. Kesin skor hiç gelmezse maç "Oynanan maçlar"a geçer, son canlı skor "kesinleşmedi" notuyla gösterilir ve sıralamada sayılır.
 
 ```bash
 cd ~/tahmin-bot && python3 live_scores.py --dry-run     # ne yazacağını gösterir
