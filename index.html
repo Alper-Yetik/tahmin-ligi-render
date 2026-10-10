@@ -126,6 +126,10 @@ a.link{display:inline}
 .livebar{display:grid;gap:6px;margin:0 0 12px}
 .liverow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 12px;font-size:.9rem}
 .liverow .livemin{font-size:.9rem;min-height:0}
+.lvdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--bad);margin-right:5px;vertical-align:1px;animation:lvpulse 1.4s ease-in-out infinite}
+@keyframes lvpulse{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.lvdot{animation:none}}
+.std tr.livert td{background:color-mix(in srgb,var(--bad) 9%,transparent)}
 .lvs{color:var(--bad);font-weight:800;font-size:.72rem;margin-left:4px;white-space:nowrap}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.78rem;color:var(--muted)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
@@ -585,7 +589,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
       var k=teamKey(r.t), c=hex.test(r.c||"")?r.c:"";
       if(c&&r.n&&!seen[r.n]){seen[r.n]=1;legend+='<span><i style="background:'+c+'"></i>'+esc(noteTr(r.n))+'</span>'}
       var gd=(+r.gd||0)>0?"+"+r.gd:String(+r.gd||0);
-      h+='<tr class="'+(k?"club":"")+'"><td class="rank"'+(c?' style="box-shadow:inset 4px 0 0 '+c+'"':'')+'>'+(+r.r||"")+'</td><td class="l tm">'+(k?'<span class="dot '+k+'"></span> ':'')+esc(r.t)+(r.lv?' <span class="lvs">● '+esc(r.lv)+'</span>':'')+'</td><td>'+(+r.o||0)+'</td><td>'+(+r.w||0)+'</td><td>'+(+r.d||0)+'</td><td>'+(+r.l||0)+'</td><td class="hm">'+(+r.gf||0)+'</td><td class="hm">'+(+r.ga||0)+'</td><td>'+gd+'</td><td class="sp">'+(+r.p||0)+'</td></tr>';
+      h+='<tr class="'+(k?"club":"")+(r.lv?" livert":"")+'"><td class="rank"'+(c?' style="box-shadow:inset 4px 0 0 '+c+'"':'')+'>'+(+r.r||"")+'</td><td class="l tm">'+(k?'<span class="dot '+k+'"></span> ':'')+esc(r.t)+(r.lv?' <span class="lvs"><i class="lvdot"></i>CANLI '+esc(r.lv)+'</span>':'')+'</td><td>'+(+r.o||0)+'</td><td>'+(+r.w||0)+'</td><td>'+(+r.d||0)+'</td><td>'+(+r.l||0)+'</td><td class="hm">'+(+r.gf||0)+'</td><td class="hm">'+(+r.ga||0)+'</td><td>'+gd+'</td><td class="sp">'+(+r.p||0)+'</td></tr>';
     });
     h+='</tbody></table></div>';
     if(legend)h+='<div class="legend">'+legend+'</div>';
