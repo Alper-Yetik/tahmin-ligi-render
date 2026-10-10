@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fenerbahçe, Galatasaray ve Beşiktaş'ın yeni maçlarını ESPN'den çekip Supabase'e ekler.
 
-Sadece maç ekler ve henüz skoru olmayan gelecekteki bir maçın saati değiştiyse saatini günceller.
+Sadece maç ekler ve henüz skoru olmayan gelecekteki bir maçın saati (başka güne kaydırıldıysa günü de) değiştiyse günceller.
 Skorlara, silmeye ve oyuncu verisine dokunmaz. Yetkisi sınırlı otomasyon anahtarını kullanır.
 
 Aynı klasördeki config.json kullanılır (bot.py ile aynı).
@@ -111,6 +111,22 @@ def day_key(dt_utc):
     return dt_utc.astimezone(TR).strftime("%Y%m%d")
 
 
+def find_moved(existing, home, away, comp, kick, now, used):
+    """Başka güne kaydırılmış maçı bulur: aynı ev sahibi, deplasman ve organizasyon, skoru yok, 14 gün içinde."""
+    best = None
+    for m in existing:
+        if m["id"] in used or m.get("home_score") is not None or m.get("away_score") is not None:
+            continue
+        if norm(m["home"]) != norm(home) or norm(m["away"]) != norm(away) or m.get("comp") != comp:
+            continue
+        old = parse_utc(m["kickoff"])
+        if old <= now or abs((old - kick).total_seconds()) > 14 * 86400:
+            continue
+        if best is None or abs(old - kick) < abs(best[0] - kick):
+            best = (old, m)
+    return best[1] if best else None
+
+
 def main():
     dry = "--dry-run" in sys.argv
     cfg = load_config()
@@ -130,6 +146,7 @@ def main():
     now = datetime.datetime.now(datetime.timezone.utc)
     limit = now + datetime.timedelta(days=WINDOW_DAYS)
     seen = set()
+    used = set()  # bu çalışmada eşleşen mevcut maçlar
     added = changed = skipped = 0
 
     for ckey, (label, tid) in CLUBS.items():
@@ -163,7 +180,10 @@ def main():
             seen.update(slots)
 
             found = next((by_slot[s] for s in slots if s in by_slot), None)
+            if not found:
+                found = find_moved(existing, home, away, league, kick, now, used)
             if found:
+                used.add(found["id"])
                 old = parse_utc(found["kickoff"])
                 no_score = found.get("home_score") is None and found.get("away_score") is None
                 if old != kick and no_score and old > now:
