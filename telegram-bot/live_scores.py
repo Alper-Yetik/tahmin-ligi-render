@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Başlamış ve henüz bitmemiş maçların CANLI skorunu ESPN'den çekip Supabase'e yazar.
 
-Siteyi canlı puan durumu için besler. Kesin (final) skoru yazmaz, onu update_scores.py yazar.
+Siteyi canlı puan durumu için besler. ESPN maçı normal sürede bitti (STATUS_FULL_TIME / STATUS_FINAL)
+olarak gösterince kesin skoru da yazar (bot_set_result, sadece boş skora). Uzatma/penaltılı maçların
+kesin skoru update_scores.py'ye ya da yönetim sekmesine bırakılır.
 Canlı alanları (live_home, live_away, live_minute, live_state), kart sayılarını ve dördüncü hakemin
 gösterdiği uzatma süresini (live_added) günceller. Kartlar maç bittikten sonra da kalır.
 Bitmemiş maç yoksa hiçbir ağ isteği yapmadan çıkar, yani cron'da her dakika çalıştırmak ucuzdur.
@@ -250,6 +252,15 @@ def main():
                 log("yazılamadı %s: %s" % (m["id"], r))
             elif changed:
                 log("%s: %s %d-%d %s" % (m["id"], st, hs, as_, minute))
+            # Normal sürede biten maçın kesin skorunu yaz. Uzatmalı/penaltılı maçlarda ESPN skoru
+            # 120 dakikayı içerdiği için dokunmuyoruz (kural: 90 dk + uzatma, penaltı yok).
+            if st == "ft" and comp["status"]["type"].get("name") in ("STATUS_FULL_TIME", "STATUS_FINAL"):
+                r = http_json(cfg["supabase_url"] + "/rest/v1/rpc/bot_set_result", {
+                    "p_secret": cfg["bot_secret"], "p_id": m["id"], "p_hs": hs, "p_as": as_}, sb)
+                if r and r.get("ok"):
+                    log("%s: kesin skor yazıldı %d-%d" % (m["id"], hs, as_))
+                else:
+                    log("kesin skor yazılamadı %s: %s" % (m["id"], r))
         if extra_changed:
             r = http_json(cfg["supabase_url"] + "/rest/v1/rpc/bot_set_extra", {
                 "p_secret": cfg["bot_secret"], "p_id": m["id"], "p_hy": cards[0], "p_hr": cards[1],
