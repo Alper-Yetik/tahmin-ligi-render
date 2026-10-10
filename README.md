@@ -43,7 +43,8 @@ Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspb
         ▲                                                         │
    Render (statik site)                                           ├─ bot.py (Telegram, sürekli servis)
                                                                   ├─ sync_fixtures.py (yeni maçlar, saatlik)
-                                                                  └─ update_scores.py (skorlar, 2 dk'da bir)
+                                                                  ├─ live_scores.py (canlı skor, gol/kart olayları, kesin skor; sürekli servis)
+                                                                  └─ update_scores.py (uzatmalı/penaltılı maçların skoru, 2 dk'da bir)
 ```
 
 | Parça | Ne yapar | Nerede |
@@ -52,8 +53,8 @@ Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspb
 | `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql` | Veritabanı tabloları, kurallar, fonksiyonlar, ilk maçlar | Supabase |
 | `telegram-bot/bot.py` | Telegram: oyuncuyu bağlar, tahmin girmeyenlere hatırlatma atar | Raspberry Pi (systemd servisi) |
 | `telegram-bot/sync_fixtures.py` | ESPN'den yeni maçları ekler | Raspberry Pi (cron) |
-| `telegram-bot/live_scores.py` | Sürmekte olan maçların canlı skorunu yazar (canlı puan durumu) | Raspberry Pi (cron, dakikada bir) |
-| `update_scores.py` | ESPN'den biten maçların skorunu yazar | Raspberry Pi (cron), bu depoda yok |
+| `telegram-bot/live_scores.py` | Sürmekte olan maçların canlı skorunu, gol/kart olaylarını yazar, maç bitince kesin skoru girer | Raspberry Pi (systemd servisi: `tahmin-live`) |
+| `update_scores.py` | ESPN'den biten maçların skorunu yazar (`live_scores.py`'nin bırakmadığı uzatmalı/penaltılı maçlar için) | Raspberry Pi (cron), bu depoda yok |
 
 ### Veritabanı güvenliği
 
@@ -124,7 +125,7 @@ Giriş sadece ad olduğu için biri başkasının adıyla yazabilir. Tablo (`cha
 
 ## Canlı puan durumu
 
-- Raspberry'deki `live_scores.py` her dakika çalışır. Başlamış ve henüz kesin skoru girilmemiş maçlar varsa ESPN'den anlık skoru ve dakikayı çeker, Supabase'e yazar (`live_home`, `live_away`, `live_minute`, `live_state`). Böyle bir maç yoksa hiçbir ağ isteği yapmadan çıkar.
+- Raspberry'deki `live_scores.py` sürekli servis olarak (`tahmin-live`) çalışır, maç sürerken 20 saniyede bir kontrol eder. Başlamış ve henüz kesin skoru girilmemiş maçlar varsa ESPN'den anlık skoru ve dakikayı çeker, Supabase'e yazar (`live_home`, `live_away`, `live_minute`, `live_state`). Böyle bir maç yoksa hiçbir ağ isteği yapmadan çıkar.
 - Site canlı maçı "Canlı maçlar" bölümünde kırmızı skor ve dakika ile gösterir, tahminlerin yanında **şimdilik** kazanılan puanı yazar ve **Sıralama** sekmesini şimdiki skora göre hesaplar. Canlı maç varken sayfa 15 saniyede bir yenilenir.
 - **Kartlar:** Maç kartında her takımın adının üstünde sarı ve kırmızı kart sayısı görünür (kart yoksa hiçbir şey görünmez). Canlıyken güncellenir, maç bittikten sonra da kalır. Betik kartları ESPN'in maç olaylarından sayar.
 - **Uzatma süresi:** Dördüncü hakem uzatmayı gösterince canlı maçta dakikanın altında "Uzatma: 4 dk" yazar. Bu bilgi ESPN'in maç yorumundaki "Fourth official has announced N minutes of added time" satırından okunur. Dakika `45+2'` gibi, uzatmada geçen süreyi gösterir.
@@ -162,6 +163,8 @@ tail -20 ~/tahmin-bot/bot.log           # bot: gelen mesajlar, gönderilen hatı
 tail -20 ~/tahmin-bot/fixtures.log      # yeni eklenen maçlar
 tail -20 ~/tahmin-ligi/log.txt          # skor betiği
 journalctl -u tahmin-bot -n 20 --no-pager
+journalctl -u tahmin-live -n 20 --no-pager   # canlı skor servisi
+tail -20 ~/tahmin-bot/live.log          # canlı skor: yazılan skor, olay ve kesin skor satırları
 sudo systemctl restart tahmin-bot       # bot kodunu güncelledikten sonra
 crontab -l                              # zamanlanmış işler
 ```
