@@ -123,6 +123,7 @@ a.link{display:inline}
 .std td.tm{font-weight:600;max-width:170px;overflow:hidden;text-overflow:ellipsis}
 .std td.sp{font-family:var(--display);font-size:1.3rem;font-weight:700}
 .std tr.club td{background:var(--accent-soft);font-weight:700}
+.lvs{color:var(--bad);font-weight:800;font-size:.72rem;margin-left:4px;white-space:nowrap}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.78rem;color:var(--muted)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 @media (max-width:520px){.tab{padding:8px 9px;font-size:.9rem;letter-spacing:.02em}.std .hm{display:none}.std th,.std td{padding:10px 6px}}
@@ -315,7 +316,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   var auth=null, adminPass=null, loading=true, loadError="";
   var BOT="uclu_tahmin_bot", tgLinked={};
   var matches=[], preds={}, players={}, lastSig="";
-  var stand={}, standAt=0, standBusy=false, euro="uel";
+  var stand={}, standAt=0, standBusy=false, standSig="", euro="uel";
   var tab="matches", filter="all", sub="up", drafts={}, flash={}, pendingDelete=null;
   var el=function(id){return document.getElementById(id)};
   var isAdmin=function(){return !!adminPass};
@@ -542,12 +543,15 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 
   /* ---------- puan durumları (Süper Lig, Avrupa kupaları) ---------- */
   var NOTE_TR={"Champions League":"Şampiyonlar Ligi","Champions League qualifying":"Şampiyonlar Ligi eleme","Europa League":"Avrupa Ligi","Europa League qualifying":"Avrupa Ligi eleme","Conference League":"Konferans Ligi","Conference League qualifying":"Konferans Ligi eleme","Europa Conference League qualifying":"Konferans Ligi eleme","Relegation":"Küme düşme","Qualifies for round of 16":"Son 16'ya doğrudan","Knockout phase playoffs":"Play-off","Knockout phase playoffs - seeded":"Play-off (seri başı)","Eliminated":"Elendi"};
+  function standLive(){return Object.keys(stand).some(function(k){return (stand[k].data||[]).some(function(r){return r.lv})})}
+  /* Canlı maç varken 15 sn'de, yokken 60 sn'de bir yeniler. Veri değişmediyse sayfayı yeniden çizmez. */
   function ensureStandings(){
-    if(standBusy||Date.now()-standAt<300000)return;
+    if(standBusy||Date.now()-standAt<(standLive()?15000:60000))return;
     standBusy=true;
     sb("/rest/v1/standings?select=*").then(function(rows){
-      stand={};(rows||[]).forEach(function(r){stand[r.league]=r});standAt=Date.now();standBusy=false;render();
-    }).catch(function(){standAt=Date.now()-240000;standBusy=false;render()});
+      var sig=JSON.stringify(rows);standAt=Date.now();standBusy=false;
+      if(sig!==standSig){standSig=sig;stand={};(rows||[]).forEach(function(r){stand[r.league]=r});render()}
+    }).catch(function(){standAt=Date.now()-30000;standBusy=false;if(!standSig){standSig="err";render()}});
   }
   function standingsHtml(){
     var names={super:"Süper Lig",ucl:"Şampiyonlar Ligi",uel:"Avrupa Ligi",uecl:"Konferans Ligi"};
@@ -556,12 +560,13 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     var s=stand[key], rows=s&&Array.isArray(s.data)?s.data:[];
     if(!rows.length)return h+'<div class="empty">'+(standAt?'<b>'+names[key]+' puan durumu henüz yok.</b><br>Raspberry Pi üzerindeki <code>sync_standings.py</code> çalışınca burada görünür.':'Yükleniyor…')+'</div>';
     var hex=/^#[0-9a-fA-F]{6}$/, seen={}, legend="";
+    if(rows.some(function(r){return r.lv}))h+='<p class="state live"><span class="livebadge">● CANLI</span> Tablo anlık skorlara göre hesaplanıyor, maçlar bitince resmi tabloya döner.</p>';
     h+='<div class="tablebox"><table class="std"><thead><tr><th>#</th><th class="l">Takım</th><th>O</th><th>G</th><th>B</th><th>M</th><th class="hm">A</th><th class="hm">Y</th><th>AV</th><th>P</th></tr></thead><tbody>';
     rows.forEach(function(r){
       var k=teamKey(r.t), c=hex.test(r.c||"")?r.c:"";
       if(c&&r.n&&!seen[r.n]){seen[r.n]=1;legend+='<span><i style="background:'+c+'"></i>'+esc(NOTE_TR[r.n]||r.n)+'</span>'}
       var gd=(+r.gd||0)>0?"+"+r.gd:String(+r.gd||0);
-      h+='<tr class="'+(k?"club":"")+'"><td class="rank"'+(c?' style="box-shadow:inset 4px 0 0 '+c+'"':'')+'>'+(+r.r||"")+'</td><td class="l tm">'+(k?'<span class="dot '+k+'"></span> ':'')+esc(r.t)+'</td><td>'+(+r.o||0)+'</td><td>'+(+r.w||0)+'</td><td>'+(+r.d||0)+'</td><td>'+(+r.l||0)+'</td><td class="hm">'+(+r.gf||0)+'</td><td class="hm">'+(+r.ga||0)+'</td><td>'+gd+'</td><td class="sp">'+(+r.p||0)+'</td></tr>';
+      h+='<tr class="'+(k?"club":"")+'"><td class="rank"'+(c?' style="box-shadow:inset 4px 0 0 '+c+'"':'')+'>'+(+r.r||"")+'</td><td class="l tm">'+(k?'<span class="dot '+k+'"></span> ':'')+esc(r.t)+(r.lv?' <span class="lvs">● '+esc(r.lv)+'</span>':'')+'</td><td>'+(+r.o||0)+'</td><td>'+(+r.w||0)+'</td><td>'+(+r.d||0)+'</td><td>'+(+r.l||0)+'</td><td class="hm">'+(+r.gf||0)+'</td><td class="hm">'+(+r.ga||0)+'</td><td>'+gd+'</td><td class="sp">'+(+r.p||0)+'</td></tr>';
     });
     h+='</tbody></table></div>';
     if(legend)h+='<div class="legend">'+legend+'</div>';
@@ -793,6 +798,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   el("adminCancel").addEventListener("click",function(){el("adminbox").hidden=true});
   el("adminOut").addEventListener("click",function(){adminPass=null;ssDel("tl_admin");tab="matches";render()});
   /* Canlı maç varken 15 saniyede bir, yoksa 30 saniyede bir yenile. */
+  setInterval(function(){if((tab==="super"||tab==="euro")&&!document.hidden)ensureStandings()},5000);
   (function tick(){
     var a=document.activeElement;
     if(BASE&&KEY&&!document.hidden&&!(a&&a.tagName==="INPUT"))load();
