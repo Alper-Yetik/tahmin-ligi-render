@@ -68,7 +68,7 @@ Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspb
 ### 1. Supabase
 
 1. supabase.com'da proje oluştur.
-2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `chat.sql`.
+2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `events.sql`, `chat.sql`.
 3. Yönetici şifresini belirle (`BURAYA_SIFRE` yerine kendi şifren):
 
 ```sql
@@ -127,6 +127,7 @@ Giriş sadece ad olduğu için biri başkasının adıyla yazabilir. Tablo (`cha
 - Site canlı maçı "Canlı maçlar" bölümünde kırmızı skor ve dakika ile gösterir, tahminlerin yanında **şimdilik** kazanılan puanı yazar ve **Sıralama** sekmesini şimdiki skora göre hesaplar. Canlı maç varken sayfa 15 saniyede bir yenilenir.
 - **Kartlar:** Maç kartında her takımın adının üstünde sarı ve kırmızı kart sayısı görünür (kart yoksa hiçbir şey görünmez). Canlıyken güncellenir, maç bittikten sonra da kalır. Betik kartları ESPN'in maç olaylarından sayar.
 - **Uzatma süresi:** Dördüncü hakem uzatmayı gösterince canlı maçta dakikanın altında "Uzatma: 4 dk" yazar. Bu bilgi ESPN'in maç yorumundaki "Fourth official has announced N minutes of added time" satırından okunur. Dakika `45+2'` gibi, uzatmada geçen süreyi gösterir.
+- **Gol ve kart olayları:** Maç kartının altında, hangi oyuncunun gol attığı ya da kart gördüğü dakikasıyla listelenir (ev sahibi solda, deplasman sağda). Penaltı golü `(P)`, kendi kalesine gol `(k.k.)` ile işaretlenir. Veri ESPN'in maç olaylarından gelir, `live_scores.py` yazar. Kurulum: `events.sql`'i Supabase'de bir kez çalıştır, sonra Raspberry'deki `live_scores.py`'yi yenile.
 - Canlı puanlar geçicidir. Maç normal sürede bitince `live_scores.py` kesin skoru kendisi yazar (uzatmalı/penaltılı maçları `update_scores.py`'ye ya da Yönetim sekmesine bırakır) ve puanlar kesinleşir. Canlı veri 10 dakikadır güncellenmediyse site onu canlı saymaz. Kesin skor hiç gelmezse maç "Oynanan maçlar"a geçer, son canlı skor "kesinleşmedi" notuyla gösterilir ve sıralamada sayılır.
 
 ```bash
