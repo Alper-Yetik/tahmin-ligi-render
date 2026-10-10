@@ -125,9 +125,9 @@ def parse_events(data, now):
             state = t.get("state")
             if state not in ("in", "post") or t.get("name") in SKIP_STATUS:
                 continue
-            # Eleme turu maçları lig tablosunu etkilemez.
-            season_slug = str((ev.get("season") or {}).get("slug") or "")
-            if season_slug and not any(k in season_slug for k in ("league", "regular")):
+            # Eleme turu ve eleme/play-off maçları lig tablosunu etkilemez (Süper Lig slug'ı "2026-27-turkish-super-lig").
+            season_slug = str((ev.get("season") or {}).get("slug") or "").lower()
+            if any(k in season_slug for k in ("knockout", "playoff", "play-off", "qualif", "round-of", "final")):
                 continue
             sides = {c["homeAway"]: c for c in comp["competitors"]}
             start = parse_utc(ev["date"])
