@@ -107,15 +107,16 @@ a.link{display:inline}
 .cards{display:flex;gap:10px;min-height:0}
 .cards:empty{display:none}
 .subtabs{display:flex;gap:8px}
-.sub{flex:1;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:11px 14px;font-family:var(--display);font-size:1.05rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
-.sub:hover{color:var(--ink)}
-.sub[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.subtab{flex:1;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:11px 14px;font-family:var(--display);font-size:1.05rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.subtab:hover{color:var(--ink)}
+.subtab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .evs{display:flex;flex-direction:column;gap:4px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:.82rem}
 .ev{display:flex;align-items:center;gap:6px;min-width:0;max-width:calc(50% - 7px)}
 .ev.away{margin-left:auto;flex-direction:row-reverse;justify-content:flex-start;text-align:right}
 .ev b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .ev .min{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .ev .gi{font-size:.9rem;line-height:1}
+.livemin.ms{color:var(--muted)}
 .cd{display:inline-flex;align-items:center;gap:5px;font-family:var(--display);font-weight:700;font-size:1rem;color:var(--ink);font-variant-numeric:tabular-nums}
 .cd i{display:inline-block;width:11px;height:15px;border-radius:2.5px;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .cd i.y{background:#f7c600}
@@ -468,7 +469,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
       h+='<div class="empty">Bu takım için maç yok.</div>';
     } else {
       if(liveList.length){h+='<h2 class="sec live">Canlı maçlar</h2><div class="list">'+liveList.map(matchCard).join("")+'</div>'}
-      h+='<div class="subtabs" role="tablist"><button class="sub" role="tab" data-sub="up" aria-selected="'+(sub==="up")+'">Oynanacak ('+up.length+')</button><button class="sub" role="tab" data-sub="done" aria-selected="'+(sub==="done")+'">Oynanan ('+done.length+')</button></div>';
+      h+='<div class="subtabs" role="tablist"><button class="subtab" role="tab" data-sub="up" aria-selected="'+(sub==="up")+'">Oynanacak ('+up.length+')</button><button class="subtab" role="tab" data-sub="done" aria-selected="'+(sub==="done")+'">Oynanan ('+done.length+')</button></div>';
       var cur=sub==="done"?done:up;
       h+=cur.length?'<div class="list">'+cur.map(matchCard).join("")+'</div>':'<div class="empty">'+(sub==="done"?"Henüz oynanan maç yok.":"Oynanacak maç yok.")+'</div>';
     }
@@ -481,7 +482,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     var hv=d.h!==undefined?d.h:(mine?mine.h:""), av=d.a!==undefined?d.a:(mine?mine.a:"");
     var center;
     if(fin){
-      center='<div class="score"><span class="final">'+m.hs+' - '+m.as+'</span></div>';
+      center='<div class="score livecol"><span class="final">'+m.hs+' - '+m.as+'</span><span class="livemin ms">MS</span></div>';
     } else if(pv){
       center='<div class="score livecol"><span class="final">'+m.lh+' - '+m.la+'</span><span class="livemin">MS · kesinleşmedi</span></div>';
     } else if(lv){
