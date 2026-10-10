@@ -1,0 +1,15 @@
+[Unit]
+Description=Üçlü Tahmin Ligi puan durumu servisi
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=alper
+WorkingDirectory=/home/alper/tahmin-bot
+ExecStart=/usr/bin/python3 /home/alper/tahmin-bot/sync_standings.py --loop
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
