@@ -123,6 +123,9 @@ a.link{display:inline}
 .std td.tm{font-weight:600;max-width:170px;overflow:hidden;text-overflow:ellipsis}
 .std td.sp{font-family:var(--display);font-size:1.3rem;font-weight:700}
 .std tr.club td{background:var(--accent-soft);font-weight:700}
+.livebar{display:grid;gap:6px;margin:0 0 12px}
+.liverow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 12px;font-size:.9rem}
+.liverow .livemin{font-size:.9rem;min-height:0}
 .lvs{color:var(--bad);font-weight:800;font-size:.72rem;margin-left:4px;white-space:nowrap}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.78rem;color:var(--muted)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
@@ -571,6 +574,8 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     var names={super:"Süper Lig",ucl:"Şampiyonlar Ligi",uel:"Avrupa Ligi",uecl:"Konferans Ligi"};
     var key=tab==="super"?"super":euro, h="";
     if(tab==="euro")h+='<div class="chips">'+["ucl","uel","uecl"].map(function(k){return '<button class="chip" data-euro="'+k+'" aria-pressed="'+(euro===k)+'">'+EURO_ICO[k]+names[k]+'</button>'}).join("")+'</div>';
+    var compName=names[key], lm=matches.filter(function(m){return m.comp===compName&&isLive(m)});
+    if(lm.length)h+='<div class="livebar">'+lm.map(function(m){return '<div class="liverow"><span class="livebadge">● '+liveLabel(m)+'</span> <b>'+esc(m.home)+' '+m.lh+' - '+m.la+' '+esc(m.away)+'</b> <span class="livemin">'+esc(liveMinute(m))+'</span>'+(m.lst==="live"&&m.ladd>0?' <span class="liveadd">Uzatma: '+m.ladd+' dk</span>':'')+'</div>'}).join("")+'</div>';
     var s=stand[key], rows=s&&Array.isArray(s.data)?s.data:[];
     if(!rows.length)return h+'<div class="empty">'+(standAt?'<b>'+names[key]+' puan durumu henüz yok.</b><br>Raspberry Pi üzerindeki <code>sync_standings.py</code> çalışınca burada görünür.':'Yükleniyor…')+'</div>';
     var hex=/^#[0-9a-fA-F]{6}$/, seen={}, legend="";
