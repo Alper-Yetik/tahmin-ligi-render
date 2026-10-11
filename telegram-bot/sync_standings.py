@@ -190,6 +190,7 @@ def overlay(rows, events, base, now):
             else:
                 t["l"] += 1
             t["lv"] = score
+            t["lr"] = "w" if gf > ga else "d" if gf == ga else "l"  # takımın bu maçtaki anlık durumu
     order = sorted(range(len(out)), key=lambda i: (-out[i]["p"], -out[i]["gd"], -out[i]["gf"], i))
     out = [out[i] for i in order]
     for i, r in enumerate(out):
