@@ -16,7 +16,7 @@
   --bg:#edf1ef; --glow1:rgba(18,184,134,.16); --glow2:rgba(20,120,200,.08);
   --surface:#ffffff; --surface2:#f4f7f5; --ink:#0b1710; --muted:#5a6b62; --line:#dfe7e2;
   --accent:#0b8a57; --accent2:#12b886; --accent-ink:#ffffff; --accent-soft:rgba(11,138,87,.10);
-  --gold:#a86d00; --gold-bg:#fff1cc; --bad:#d23b2e; --field:#f3f6f4;
+  --gold:#a86d00; --gold-bg:#fff1cc; --bad:#d23b2e; --win:#1b8a4b; --field:#f3f6f4;
   --fb:#1b2a6b; --gs:#c4161c; --bjk:#111111;
   --shadow:0 1px 2px rgba(10,30,20,.05),0 10px 30px rgba(10,30,20,.07);
   --shadow-lg:0 24px 60px rgba(10,30,20,.28);
@@ -29,7 +29,7 @@
     --bg:#070f0b; --glow1:rgba(47,209,140,.13); --glow2:rgba(60,120,255,.08);
     --surface:#0e1812; --surface2:#131f19; --ink:#e9f2ed; --muted:#8da298; --line:#1d2c24;
     --accent:#2fd18c; --accent2:#19b6a0; --accent-ink:#04140c; --accent-soft:rgba(47,209,140,.12);
-    --gold:#f2c14e; --gold-bg:#33290f; --bad:#ff6b5e; --field:#0b130f;
+    --gold:#f2c14e; --gold-bg:#33290f; --bad:#ff6b5e; --win:#4ade80; --field:#0b130f;
     --fb:#7d92ff; --gs:#ff5a60; --bjk:#dedede;
     --shadow:0 1px 0 rgba(255,255,255,.03) inset,0 12px 32px rgba(0,0,0,.40);
     --shadow-lg:0 24px 70px rgba(0,0,0,.6);
@@ -126,10 +126,14 @@ a.link{display:inline}
 .livebar{display:grid;gap:6px;margin:0 0 12px}
 .liverow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 12px;font-size:.9rem}
 .liverow .livemin{font-size:.9rem;min-height:0}
-.lvdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--bad);margin-right:5px;vertical-align:1px;animation:lvpulse 1.4s ease-in-out infinite}
+.lvdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:5px;vertical-align:1px;animation:lvpulse 1.4s ease-in-out infinite}
 @keyframes lvpulse{0%,100%{opacity:1}50%{opacity:.25}}
 @media (prefers-reduced-motion:reduce){.lvdot{animation:none}}
-.std tr.livert td{background:color-mix(in srgb,var(--bad) 9%,transparent)}
+.std tr.livert td{background:color-mix(in srgb,var(--gold) 12%,transparent)}
+.std tr.lv-w td{background:color-mix(in srgb,var(--win) 14%,transparent)}
+.std tr.lv-l td{background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.lvs-w{color:var(--win)!important}
+.lvs-d{color:var(--gold)!important}
 .lvs{color:var(--bad);font-weight:800;font-size:.72rem;margin-left:4px;white-space:nowrap}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.78rem;color:var(--muted)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
@@ -589,7 +593,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
       var k=teamKey(r.t), c=hex.test(r.c||"")?r.c:"";
       if(c&&r.n&&!seen[r.n]){seen[r.n]=1;legend+='<span><i style="background:'+c+'"></i>'+esc(noteTr(r.n))+'</span>'}
       var gd=(+r.gd||0)>0?"+"+r.gd:String(+r.gd||0);
-      h+='<tr class="'+(k?"club":"")+(r.lv?" livert":"")+'"><td class="rank"'+(c?' style="box-shadow:inset 4px 0 0 '+c+'"':'')+'>'+(+r.r||"")+'</td><td class="l tm">'+(k?'<span class="dot '+k+'"></span> ':'')+esc(r.t)+(r.lv?' <span class="lvs"><i class="lvdot"></i>CANLI '+esc(r.lv)+'</span>':'')+'</td><td>'+(+r.o||0)+'</td><td>'+(+r.w||0)+'</td><td>'+(+r.d||0)+'</td><td>'+(+r.l||0)+'</td><td class="hm">'+(+r.gf||0)+'</td><td class="hm">'+(+r.ga||0)+'</td><td>'+gd+'</td><td class="sp">'+(+r.p||0)+'</td></tr>';
+      h+='<tr class="'+(k?"club":"")+(r.lv?" livert"+(r.lr==="w"?" lv-w":r.lr==="l"?" lv-l":""):"")+'"><td class="rank"'+(c?' style="box-shadow:inset 4px 0 0 '+c+'"':'')+'>'+(+r.r||"")+'</td><td class="l tm">'+(k?'<span class="dot '+k+'"></span> ':'')+esc(r.t)+(r.lv?' <span class="lvs'+(r.lr==="w"?" lvs-w":r.lr==="d"?" lvs-d":"")+'"><i class="lvdot"></i>'+(r.lr==="w"?"▲ ":r.lr==="l"?"▼ ":r.lr==="d"?"= ":"")+'CANLI '+esc(r.lv)+'</span>':'')+'</td><td>'+(+r.o||0)+'</td><td>'+(+r.w||0)+'</td><td>'+(+r.d||0)+'</td><td>'+(+r.l||0)+'</td><td class="hm">'+(+r.gf||0)+'</td><td class="hm">'+(+r.ga||0)+'</td><td>'+gd+'</td><td class="sp">'+(+r.p||0)+'</td></tr>';
     });
     h+='</tbody></table></div>';
     if(legend)h+='<div class="legend">'+legend+'</div>';
