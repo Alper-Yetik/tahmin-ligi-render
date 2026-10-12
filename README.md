@@ -72,7 +72,7 @@ Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspb
 ### 1. Supabase
 
 1. supabase.com'da proje oluştur.
-2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `events.sql`, `standings.sql`, `chat.sql`, **`members.sql` en son** (eski şifresiz giriş fonksiyonlarını siler ve üyelik sistemini kurar).
+2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `events.sql`, `standings.sql`, `chat.sql`, sonra **`members.sql`** (eski şifresiz giriş fonksiyonlarını siler ve üyelik sistemini kurar), en son **`telegram_link.sql`** (Telegram bağlantısını üyelik oturumuna bağlar).
 3. Yönetici şifresini belirle (`BURAYA_SIFRE` yerine kendi şifren):
 
 ```sql
@@ -123,6 +123,8 @@ python3 sync_fixtures.py --dry-run     # önce dene, hiçbir şey eklemez
 
 Sitedeki **Sohbet** sekmesinde oyuncular adlarıyla mesaj yazar (en fazla 300 karakter). Sayfa açıkken 4 saniyede bir yenilenir, başka sekmedeyken okunmamış mesaj sayısı sekmenin yanında görünür. Bir oyuncu 2 saniyede birden fazla, tüm sohbet dakikada 40'tan fazla mesaj yazamaz. Son 500 mesaj tutulur, eskileri otomatik silinir. Yönetici girişi yapınca her mesajın yanında "sil" bağlantısı çıkar.
 
+Mesajlar gün gün gruplanır: günlerin arasında "Bugün", "Dün", "9 Eki Cum" gibi (Türkiye saatine göre) ayraç durur, her mesajın yanında saati yazar. Sohbeti kaydırırken üstte o anki günün etiketi geçici olarak belirir, kaydırmayı bırakınca yaklaşık 1,3 saniyede kaybolur (WhatsApp gibi).
+
 Mesaj yazmak için giriş yapmak gerekir, mesaj üyenin kendi adıyla görünür. Tablo (`chat_messages`) tarayıcıdan doğrudan yazılamaz, sadece oturum anahtarı isteyen `send_chat` fonksiyonuyla yazılır. Kurulum: `chat.sql`, `members.sql`.
 
 ## Üyelik
@@ -131,6 +133,7 @@ Mesaj yazmak için giriş yapmak gerekir, mesaj üyenin kendi adıyla görünür
 - **Giriş:** Başarılı girişte cihaza 60 günlük bir oturum anahtarı verilir (veritabanında sadece özeti saklanır). Tahmin ve sohbet işlemleri bu anahtarla yapılır, kullanıcı adı yazarak yapılamaz.
 - **Kilitlenme:** 5 yanlış şifre ya da kod denemesinde hesap 15 dakika kilitlenir.
 - **Şifre değiştirme:** Giriş yapmış üye "şifre değiştir" ile değiştirir, diğer cihazlardaki oturumları kapanır.
+- **Çıkış yap:** Üstteki "çıkış yap" oturumu bu cihazda ve veritabanında kapatır. Çıkınca misafir görünümüne dönülür (okumak serbest, yazmak için giriş gerekir).
 - **Eski (şifresiz) oyuncular ve şifresini unutanlar:** Yönetici girişi yapınca **Yönetim** sekmesindeki **Oyuncular** listesinden oyuncunun yanındaki "Kod üret" ya da "Şifreyi sıfırla" düğmesine basar. Çıkan tek kullanımlık kodu (örn. `A3F0-9C21`) oyuncuya iletir. Oyuncu **Kodum var** sekmesinde kullanıcı adı, kod ve yeni şifresiyle hesabını sahiplenir. Kod bir kez kullanılır, kodu yönetici sadece üretildiği anda görür.
 - Telegram hatırlatması oturum anahtarına bağlıdır: üye giriş yapınca "Telegram'dan hatırlat"a basar, site 15 dakikalık tek kullanımlık kod üretir (bkz. "Telegram hatırlatması").
 
