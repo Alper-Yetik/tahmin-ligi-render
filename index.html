@@ -221,8 +221,9 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 .msg{align-self:flex-start;max-width:86%;background:var(--surface);border:1px solid var(--line);border-radius:16px 16px 16px 4px;padding:8px 12px;overflow-wrap:anywhere;min-width:0;box-shadow:var(--shadow)}
 .msg.mine{align-self:flex-end;border-radius:16px 16px 4px 16px;border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--accent-ink)}
 .msg .who{font-family:var(--display);font-weight:700;font-size:1.02rem;letter-spacing:.03em}
-.daysep{display:flex;align-items:center;gap:10px;margin:6px 0 2px;color:var(--muted);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
-.daysep::before,.daysep::after{content:"";flex:1;height:1px;background:var(--line)}
+.daygrp{display:flex;flex-direction:column;gap:10px;min-width:0}
+.daysep{position:sticky;top:0;z-index:3;display:flex;justify-content:center;padding:2px 0 4px;pointer-events:none}
+.daysep span{background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 14px;font-size:.72rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;box-shadow:var(--shadow)}
 .msg .t{opacity:.65;font-size:.72rem;font-variant-numeric:tabular-nums}
 .msg.mine .link{color:inherit}
 .chatfoot{padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;gap:6px}
@@ -749,15 +750,22 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   }
   function chatListHtml(){
     if(!chat.length)return '<div class="state">Henüz mesaj yok. İlk mesajı sen yaz.</div>';
-    var lastDay="";
-    return chat.map(function(m){
+    /* Her günün mesajları kendi grubunda durur. Gün etiketi grubunun içinde üste yapışır (sticky),
+       sonraki güne gelince bir önceki günün etiketini yukarı iterek yerine geçer, WhatsApp gibi. */
+    var html="", lastDay="";
+    chat.forEach(function(m){
       var mine=auth&&m.player_id===auth.id;
-      var ts=Date.parse(m.created_at), dk=dayKey(ts), sep="";
-      if(dk!==lastDay){lastDay=dk;sep='<div class="daysep"><span>'+esc(dayLabel(ts))+'</span></div>'}
-      return sep+'<div class="msg'+(mine?' mine':'')+'"><span class="who">'+esc(m.nick)+'</span> <span class="t">'+fmtTime(Date.parse(m.created_at))+'</span>'+
+      var ts=Date.parse(m.created_at), dk=dayKey(ts);
+      if(dk!==lastDay){
+        if(lastDay)html+='</div>';
+        lastDay=dk;
+        html+='<div class="daygrp"><div class="daysep"><span>'+esc(dayLabel(ts))+'</span></div>';
+      }
+      html+='<div class="msg'+(mine?' mine':'')+'"><span class="who">'+esc(m.nick)+'</span> <span class="t">'+fmtTime(ts)+'</span>'+
         (isAdmin()?' <button class="link" data-action="delChat" data-id="'+m.id+'" aria-label="Mesajı sil">sil</button>':'')+
         '<div>'+esc(m.body)+'</div></div>';
-    }).join("");
+    });
+    return html+(lastDay?'</div>':'');
   }
   function updateChatUI(force){
     var last=chat.length?chat[chat.length-1].id:0;
