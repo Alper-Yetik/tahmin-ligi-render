@@ -908,7 +908,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     if(a==="sendChat")sendChat();
     else if(a==="delChat")delChat(t.dataset.id);
     else if(a==="savePred")savePred(m);
-    else if(a==="signout"){var tk=auth&&auth.token;auth=null;lsDel("tl_auth");chatFootKey="";el("pwbox").hidden=true;render();if(tk)rpc("member_logout",{p_token:tk}).catch(function(){})}
+    else if(a==="signout"){var tk=auth&&auth.token;auth=null;lsDel("tl_auth");chatFootKey="";el("pwbox").hidden=true;setMode("login");render();if(tk)rpc("member_logout",{p_token:tk}).catch(function(){})}
     else if(a==="showPw"){el("pwbox").hidden=false;el("pwOld").focus()}
     else if(a==="resetPlayer")resetPlayer(t.dataset.id);
     else if(a==="hideCode"){newCode=null;render()}

@@ -6,7 +6,7 @@ Canlı site: https://tahmin-ligi-render.onrender.com/
 
 ## Nasıl çalışır
 
-- **Giriş yok, hesap yok.** Oyuncu sadece adını yazar. Aynı ad her cihazdan aynı oyuncudur. Şifre ya da PIN yoktur, yani biri başkasının adını yazarak onun adına, henüz tahmin girmediği maçlara tahmin girebilir. Girilmiş tahmin kimse tarafından değiştirilemez.
+- **Üyelik: kullanıcı adı + şifre.** Tahmin girmek ve sohbet için giriş yapmak gerekir (bkz. "Üyelik"). Misafirler maçları, tahminleri, sıralamayı ve sohbeti okuyabilir ama yazamaz.
 - **Her maça tek tahmin.** Kaydedilince kilitlenir, değiştirilemez, silinemez (yönetici hariç).
 - **Maçtan 5 saat önce kapanır.** Örneğin 20:00'de başlayan maça 15:00'e kadar tahmin girilir. Kural veritabanında uygulanır, tarayıcıdan atlatılamaz.
 - **Herkesin tahmini maç kartında görünür.**
@@ -72,7 +72,7 @@ Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspb
 ### 1. Supabase
 
 1. supabase.com'da proje oluştur.
-2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `events.sql`, `standings.sql`, `chat.sql`.
+2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `events.sql`, `standings.sql`, `chat.sql`, **`members.sql` en son** (eski şifresiz giriş fonksiyonlarını siler ve üyelik sistemini kurar).
 3. Yönetici şifresini belirle (`BURAYA_SIFRE` yerine kendi şifren):
 
 ```sql
@@ -123,7 +123,16 @@ python3 sync_fixtures.py --dry-run     # önce dene, hiçbir şey eklemez
 
 Sitedeki **Sohbet** sekmesinde oyuncular adlarıyla mesaj yazar (en fazla 300 karakter). Sayfa açıkken 4 saniyede bir yenilenir, başka sekmedeyken okunmamış mesaj sayısı sekmenin yanında görünür. Bir oyuncu 2 saniyede birden fazla, tüm sohbet dakikada 40'tan fazla mesaj yazamaz. Son 500 mesaj tutulur, eskileri otomatik silinir. Yönetici girişi yapınca her mesajın yanında "sil" bağlantısı çıkar.
 
-Giriş sadece ad olduğu için biri başkasının adıyla yazabilir. Tablo (`chat_messages`) tarayıcıdan doğrudan yazılamaz, sadece `send_chat` fonksiyonuyla yazılır. Kurulum: `chat.sql`.
+Mesaj yazmak için giriş yapmak gerekir, mesaj üyenin kendi adıyla görünür. Tablo (`chat_messages`) tarayıcıdan doğrudan yazılamaz, sadece oturum anahtarı isteyen `send_chat` fonksiyonuyla yazılır. Kurulum: `chat.sql`, `members.sql`.
+
+## Üyelik
+
+- **Üye ol:** Kullanıcı adı (2-24 karakter) ve en az 6 karakterlik şifre. Şifre veritabanında bcrypt ile saklanır, geri okunamaz.
+- **Giriş:** Başarılı girişte cihaza 60 günlük bir oturum anahtarı verilir (veritabanında sadece özeti saklanır). Tahmin ve sohbet işlemleri bu anahtarla yapılır, kullanıcı adı yazarak yapılamaz.
+- **Kilitlenme:** 5 yanlış şifre ya da kod denemesinde hesap 15 dakika kilitlenir.
+- **Şifre değiştirme:** Giriş yapmış üye "şifre değiştir" ile değiştirir, diğer cihazlardaki oturumları kapanır.
+- **Eski (şifresiz) oyuncular ve şifresini unutanlar:** Yönetici girişi yapınca **Yönetim** sekmesindeki **Oyuncular** listesinden oyuncunun yanındaki "Kod üret" ya da "Şifreyi sıfırla" düğmesine basar. Çıkan tek kullanımlık kodu (örn. `A3F0-9C21`) oyuncuya iletir. Oyuncu **Kodum var** sekmesinde kullanıcı adı, kod ve yeni şifresiyle hesabını sahiplenir. Kod bir kez kullanılır, kodu yönetici sadece üretildiği anda görür.
+- Telegram hatırlatma bağlantısı hâlâ oyuncu kimliğiyle çalışır (bkz. "Bilinen sınırlar").
 
 ## Canlı puan durumu
 
@@ -207,6 +216,7 @@ crontab -l                              # zamanlanmış işler
 
 ## Bilinen sınırlar
 
-- Ad ile giriş: başkası senin adını yazarsa senin adına, tahmin girmediğin maçlara tahmin girebilir.
+- Telegram hatırlatması: bağlantı oyuncu kimliği ile çalışır, kimliği bilen biri başka bir oyuncunun hatırlatmasını kendi Telegram'ına yönlendirebilir. Sadece hatırlatma mesajını etkiler.
+- Şifre sıfırlama yöneticiye bağlıdır (e-posta ile kendiliğinden sıfırlama yok).
 - Skor ve fikstür verisi ESPN'in herkese açık verisinden gelir, hatalı ya da gecikmeli olabilir. Skorlar tek kaynaktan alınır.
 - Betiklerin çalışması için Raspberry Pi'nin açık ve internete bağlı olması gerekir.
