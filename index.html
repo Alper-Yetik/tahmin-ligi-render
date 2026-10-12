@@ -238,6 +238,8 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 .chatattach{flex:none;width:40px;height:40px;border-radius:50%;border:1.5px solid var(--line);background:var(--field);color:var(--muted);display:grid;place-items:center}
 .chatattach:hover{color:var(--ink)}
 .chatattach svg{width:20px;height:20px}
+.chatcam{display:none}
+@media (pointer:coarse){.chatcam{display:grid}}
 .chatprev{display:flex;align-items:center;gap:10px}
 .chatprev img{height:56px;width:56px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
 .chatprev[hidden]{display:none}
@@ -742,7 +744,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     if(key===chatFootKey)return;
     chatFootKey=key;
     foot.innerHTML=auth?
-      '<div class="chatprev" id="chatPrev" hidden></div><div class="chatform"><button class="chatattach" type="button" data-action="pickImg" aria-label="Fotoğraf ekle">'+IMG_SVG+'</button><input type="file" id="chatFile" accept="image/*" hidden><input id="chatInput" maxlength="300" autocomplete="off" placeholder="Mesaj yaz…" value="'+esc(chatDraft)+'" aria-label="Mesaj"><button class="chatsend" id="chatSend" type="button" data-action="sendChat" aria-label="Gönder">'+SEND_SVG+'</button></div><span class="state warn" id="chatErr">'+esc(chatErr)+'</span>':
+      '<div class="chatprev" id="chatPrev" hidden></div><div class="chatform"><button class="chatattach" type="button" data-action="pickImg" aria-label="Galeriden fotoğraf ekle">'+IMG_SVG+'</button><button class="chatattach chatcam" type="button" data-action="pickCam" aria-label="Fotoğraf çek">'+CAM_SVG+'</button><input type="file" id="chatFile" accept="image/*" hidden><input type="file" id="chatCam" accept="image/*" capture="environment" hidden><input id="chatInput" maxlength="300" autocomplete="off" placeholder="Mesaj yaz…" value="'+esc(chatDraft)+'" aria-label="Mesaj"><button class="chatsend" id="chatSend" type="button" data-action="sendChat" aria-label="Gönder">'+SEND_SVG+'</button></div><span class="state warn" id="chatErr">'+esc(chatErr)+'</span>':
       '<span class="state">Mesaj yazmak için önce sayfadan giriş yap.</span>';
     updateChatPrev();
   }
@@ -785,6 +787,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     if(k===dayKey(Date.now()-86400000))return "Dün";
     try{return new Date(ms).toLocaleDateString("tr-TR",{timeZone:"Europe/Istanbul",day:"numeric",month:"short",weekday:"short"})}catch(e){return k}
   }
+  var CAM_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>';
   var IMG_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>';
   function updateChatPrev(){
     var p=el("chatPrev");if(!p)return;
@@ -1042,6 +1045,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     var a=t.dataset.action,m=t.dataset.m;
     if(a==="sendChat")sendChat();
     else if(a==="pickImg"){var fi=el("chatFile");if(fi)fi.click()}
+    else if(a==="pickCam"){var fc=el("chatCam");if(fc)fc.click()}
     else if(a==="clearImg")clearChatImg();
     else if(a==="zoom")openLightbox(t.getAttribute("src"));
     else if(a==="delChat")delChat(t.dataset.id);
@@ -1067,7 +1071,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     if(btn)btn.disabled=!(h!==""&&a!==""&&+h>=0&&+a>=0&&+h<=30&&+a<=30);
   });
   document.addEventListener("input",function(e){if(e.target&&e.target.id==="chatInput")chatDraft=e.target.value});
-  document.addEventListener("change",function(e){var t=e.target;if(t&&t.id==="chatFile"){var f=t.files&&t.files[0];t.value="";pickChatImg(f)}});
+  document.addEventListener("change",function(e){var t=e.target;if(t&&(t.id==="chatFile"||t.id==="chatCam")){var f=t.files&&t.files[0];t.value="";pickChatImg(f)}});
   /* Görsel yüklenince yükseklik değişir: en alttaysak yeniden en alta kaydır. */
   document.addEventListener("load",function(e){var t=e.target;if(t&&t.classList&&t.classList.contains("chatimg")&&Date.now()<chatStickUntil){var box=el("chatlist");if(box){chatProg=Date.now();box.scrollTop=box.scrollHeight}}},true);
   document.addEventListener("keydown",function(e){if(e.key==="Enter"&&e.target&&e.target.id==="chatInput"){e.preventDefault();sendChat()}});
