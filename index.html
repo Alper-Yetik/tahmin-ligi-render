@@ -216,14 +216,18 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 .chathead b{display:block;font-family:var(--display);font-size:1.4rem;letter-spacing:.06em;text-transform:uppercase;line-height:1}
 .chathead span{font-size:.78rem;opacity:.85}
 .chatx{background:rgba(255,255,255,.2);border:0;border-radius:50%;width:32px;height:32px;display:grid;place-items:center;color:inherit;font-size:1.2rem;line-height:1}
-.chatlist{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:0 16px 16px;background:var(--bg);overscroll-behavior:contain}
+.chatbody{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+.chatlist{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--bg);overscroll-behavior:contain}
 .chatlist .state{text-align:center;margin:auto}
 .msg{align-self:flex-start;max-width:86%;background:var(--surface);border:1px solid var(--line);border-radius:16px 16px 16px 4px;padding:8px 12px;overflow-wrap:anywhere;min-width:0;box-shadow:var(--shadow)}
 .msg.mine{align-self:flex-end;border-radius:16px 16px 4px 16px;border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--accent-ink)}
 .msg .who{font-family:var(--display);font-weight:700;font-size:1.02rem;letter-spacing:.03em}
 .daygrp{display:flex;flex-direction:column;gap:10px;min-width:0}
-.daysep{position:sticky;top:0;z-index:3;display:flex;justify-content:center;padding:10px 0 4px;pointer-events:none}
-.daysep span{background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 14px;font-size:.72rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;box-shadow:var(--shadow)}
+.daysep{display:flex;justify-content:center;padding:6px 0 2px}
+.floatday{position:absolute;top:10px;left:0;right:0;display:flex;justify-content:center;pointer-events:none;opacity:0;z-index:4}
+.floatday.show{opacity:1}
+@media (prefers-reduced-motion:no-preference){.floatday{transition:opacity .25s}}
+.daysep span,.floatday span{background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 14px;font-size:.72rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;box-shadow:var(--shadow)}
 .msg .t{opacity:.65;font-size:.72rem;font-variant-numeric:tabular-nums}
 .msg.mine .link{color:inherit}
 .chatfoot{padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;gap:6px}
@@ -332,7 +336,10 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     <div><b>Sohbet</b><span>Maç günü sohbeti</span></div>
     <button class="chatx" id="chatClose" type="button" aria-label="Sohbeti kapat">&times;</button>
   </div>
-  <div id="chatlist" class="chatlist" aria-live="polite"></div>
+  <div class="chatbody">
+    <div id="chatlist" class="chatlist" aria-live="polite"></div>
+    <div id="chatFloat" class="floatday" aria-hidden="true"><span></span></div>
+  </div>
   <div id="chatfoot" class="chatfoot"></div>
 </section>
 
@@ -740,6 +747,23 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
       var inp=el("chatInput");if(inp)setTimeout(function(){inp.focus()},50);
     } else updateChatUI(false);
   }
+  /* WhatsApp gibi: kaydırırken üstte o anki günün etiketi belirir, durunca kaybolur.
+     Mesajların arasındaki gün ayraçları ise yerinde kalır. */
+  var chatProg=0, floatTimer=null;
+  function onChatScroll(){
+    if(Date.now()-chatProg<250)return; // koddan yapılan otomatik kaydırmada etiket çıkmasın
+    var box=el("chatlist"),fl=el("chatFloat");if(!box||!fl)return;
+    var top=box.getBoundingClientRect().top, label="";
+    var groups=box.querySelectorAll(".daygrp");
+    for(var i=0;i<groups.length;i++){
+      if(groups[i].getBoundingClientRect().top-top<=40){label=groups[i].querySelector(".daysep span").textContent}else break;
+    }
+    if(!label)return;
+    fl.firstChild.textContent=label;
+    fl.classList.add("show");
+    clearTimeout(floatTimer);
+    floatTimer=setTimeout(function(){fl.classList.remove("show")},1300);
+  }
   /* Gün ayracı: Türkiye saatine göre "Bugün", "Dün" ya da "9 Eki Cum". */
   function dayKey(ms){try{return new Date(ms).toLocaleDateString("en-CA",{timeZone:"Europe/Istanbul"})}catch(e){return ""}}
   function dayLabel(ms){
@@ -774,7 +798,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     if(chatOpen&&box){
       var near=force||box.scrollHeight-box.scrollTop-box.clientHeight<80;
       var html=chatListHtml();
-      if(box.dataset.sig!==html){box.dataset.sig=html;box.innerHTML=html;if(near)box.scrollTop=box.scrollHeight}
+      if(box.dataset.sig!==html){box.dataset.sig=html;box.innerHTML=html;if(near){chatProg=Date.now();box.scrollTop=box.scrollHeight}}
     }
     var unread=chat.filter(function(m){return m.id>chatSeen&&!(auth&&m.player_id===auth.id)}).length;
     var badge=el("chatBadge");
@@ -975,6 +999,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     chatTick++;
     if(chatOpen||chatTick%5===0)loadChat();
   },4000);
+  el("chatlist").addEventListener("scroll",onChatScroll,{passive:true});
   el("chatFab").addEventListener("click",function(){setChatOpen(!chatOpen)});
   el("chatClose").addEventListener("click",function(){setChatOpen(false);el("chatFab").focus()});
   document.addEventListener("keydown",function(e){if(e.key==="Escape"&&chatOpen){setChatOpen(false);el("chatFab").focus()}});
