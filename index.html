@@ -186,6 +186,17 @@ td.total{font-family:var(--display);font-size:1.6rem;font-weight:700}
 label{display:flex;flex-direction:column;gap:5px;font-size:.78rem;color:var(--muted);font-weight:700;letter-spacing:.03em;min-width:0}
 label input,label select{background:var(--field);border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;color:var(--ink);width:100%;min-width:0;font-weight:500}
 label input:focus,label select:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 4px var(--accent-soft)}
+.seg{display:flex;gap:4px;padding:4px;background:var(--surface2);border:1px solid var(--line);border-radius:999px;align-self:flex-start;max-width:100%;overflow-x:auto}
+.segb{background:none;border:0;border-radius:999px;padding:8px 16px;font-weight:700;font-size:.85rem;color:var(--muted);white-space:nowrap}
+.segb[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.codebox{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;background:var(--gold-bg);border:1.5px dashed var(--gold);border-radius:16px;padding:14px 16px}
+.code{font-family:var(--display);font-size:2.1rem;font-weight:700;letter-spacing:.14em;color:var(--gold);user-select:all}
+.prow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 0;border-top:1px solid var(--line)}
+.prow:first-of-type{border-top:0}
+.prow .grow{flex:1}
+.chipst{font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 10px;border-radius:999px;background:var(--surface2);border:1px solid var(--line);color:var(--muted)}
+.chipst.ok{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.chipst.wait{background:var(--gold-bg);color:var(--gold);border-color:transparent}
 .adminrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border-top:1px dashed var(--line);padding-top:12px}
 .adminrow input{width:3.2rem;text-align:center;background:var(--field);border:1.5px solid var(--line);border-radius:10px;padding:8px;font-variant-numeric:tabular-nums}
 .adminrow .grow{flex:1}
@@ -259,13 +270,31 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 
   <form id="loginbox" class="panel" hidden>
     <div>
-      <h2 style="font-size:1.6rem">Adını yaz</h2>
-      <p class="sub">Tahminlerin ve puanın bu isimle görünür. Her gün aynı ismi yaz.</p>
+      <h2 style="font-size:1.6rem">Üye girişi</h2>
+      <p class="sub">Tahmin girmek ve sohbet için giriş yap ya da üye ol.</p>
+    </div>
+    <div class="seg" role="group" aria-label="Giriş türü">
+      <button type="button" class="segb" data-mode="login" aria-pressed="true">Giriş yap</button>
+      <button type="button" class="segb" data-mode="register" aria-pressed="false">Üye ol</button>
+      <button type="button" class="segb" data-mode="claim" aria-pressed="false">Kodum var</button>
     </div>
     <div class="fields">
-      <label for="loginNick">Adın<input id="loginNick" maxlength="24" autocomplete="nickname"></label>
+      <label for="loginNick">Kullanıcı adı<input id="loginNick" maxlength="24" autocomplete="username"></label>
+      <label for="loginCode" id="lblCode" hidden>Tek kullanımlık kod<input id="loginCode" autocomplete="off" placeholder="A3F0-9C21"></label>
+      <label for="loginPass" id="lblPass">Şifre<input id="loginPass" type="password" autocomplete="current-password"></label>
+      <label for="loginPass2" id="lblPass2" hidden>Şifre (tekrar)<input id="loginPass2" type="password" autocomplete="new-password"></label>
     </div>
-    <div class="foot"><span class="state" id="loginMsg"></span><button class="btn" type="submit" id="loginBtn">Kaydet</button></div>
+    <div class="foot"><span class="state" id="loginMsg"></span><button class="btn" type="submit" id="loginBtn">Giriş yap</button></div>
+    <p class="sub" id="loginHelp"></p>
+  </form>
+
+  <form id="pwbox" class="panel" hidden>
+    <h2 style="font-size:1.6rem">Şifre değiştir</h2>
+    <div class="fields">
+      <label for="pwOld">Şimdiki şifre<input id="pwOld" type="password" autocomplete="current-password"></label>
+      <label for="pwNew">Yeni şifre<input id="pwNew" type="password" autocomplete="new-password"></label>
+    </div>
+    <div class="foot"><span class="state" id="pwMsg"></span><span><button class="btn ghost" type="button" id="pwCancel">Vazgeç</button> <button class="btn" type="submit">Kaydet</button></span></div>
   </form>
 
   <form id="adminbox" class="panel" hidden>
@@ -312,15 +341,23 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   var COMPS=["Süper Lig","Şampiyonlar Ligi","Avrupa Ligi","Konferans Ligi","Türkiye Kupası","Süper Kupa"];
   var EXACT=5, DIFF=3, SIDE=2;
   var ERR={
-    invalid_nick:"Ad 2 ile 24 karakter arasında olmalı.",
-    unknown_player:"Adın kayıtlı değil, önce adını yaz.",
+    invalid_nick:"Kullanıcı adı 2 ile 24 karakter arasında olmalı (< ve > kullanılamaz).",
+    invalid_password:"Şifre en az 6 karakter olmalı.",
+    wrong_credentials:"Kullanıcı adı ya da şifre yanlış.",
+    locked:"Çok fazla yanlış deneme. 15 dakika sonra tekrar dene.",
+    not_claimed:"Bu hesabı henüz kimse sahiplenmemiş. 'Kodum var' sekmesinden yöneticinin verdiği kodla şifre belirle.",
+    name_taken:"Bu kullanıcı adı alınmış. 'Giriş yap' sekmesini dene ya da başka bir ad seç.",
+    wrong_code:"Kod yanlış ya da bu kullanıcı için kod üretilmemiş.",
+    already_claimed:"Bu hesap zaten sahiplenilmiş. 'Giriş yap' sekmesini kullan.",
+    no_code:"Bu kullanıcı için kod üretilmemiş. Yöneticiden kod iste.",
+    not_logged_in:"Oturumun doldu, tekrar giriş yap.",
     invalid_score:"Skor 0 ile 30 arasında olmalı.",
     no_match:"Bu maç artık yok.",
     closed:"Maç başladı, tahmin süresi doldu.",
     already_predicted:"Bu maça zaten tahmin girmişsin.",
     wrong_admin:"Yönetici şifresi yanlış.",
     too_fast:"Çok hızlı yazıyorsun, birkaç saniye bekle.",
-    busy:"Sohbet şu an çok yoğun, biraz sonra tekrar dene.",
+    busy:"Şu an çok yoğun, biraz sonra tekrar dene.",
     invalid_body:"Mesaj 1 ile 300 karakter arasında olmalı."
   };
 
@@ -464,7 +501,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     if(!auth){me.hidden=true;return}
     me.hidden=false;
     var tg=tgLinked[auth.id]?'<span class="state ok">Telegram hatırlatması açık</span>':'<a class="link" target="_blank" rel="noopener" href="https://t.me/'+BOT+'?start='+encodeURIComponent(auth.id)+'">Telegram\'dan hatırlat</a>';
-    me.innerHTML='<span>Oynayan: <b>'+esc(auth.nick)+'</b></span> <button class="link" data-action="logout">adı değiştir</button> · <button class="link" data-action="signout">çıkış yap</button> · '+tg;
+    me.innerHTML='<span>Oynayan: <b>'+esc(auth.nick)+'</b></span> <button class="link" data-action="showPw">şifre değiştir</button> · <button class="link" data-action="signout">çıkış yap</button> · '+tg;
   }
 
   function filterChips(){
@@ -624,6 +661,36 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     return note+h+'</tbody></table></div><p class="state">Bitmiş maç sayısı: '+doneCount+(liveCount?' · Canlı: '+liveCount:'')+'</p>'+rulesHtml();
   }
 
+  /* Yönetici: oyuncu listesi ve tek kullanımlık kod üretme (şifre sıfırlama dahil). */
+  var adminPlayers=null, newCode=null, pendingReset=null;
+  function playersPanel(){
+    var h='<div class="panel"><h2 style="font-size:1.4rem">Oyuncular</h2>';
+    if(newCode){
+      h+='<div class="codebox"><div><span class="state">'+esc(newCode.nick)+' için tek kullanımlık kod</span><div class="code">'+esc(newCode.code)+'</div>'+
+        '<span class="state">Kodu sadece şimdi görürsün. Oyuncu siteye girip <b>Kodum var</b> sekmesinde kullanıcı adı, bu kod ve yeni şifresiyle hesabını sahiplenir. Eski şifresi iptal olur.</span></div>'+
+        '<div><button class="btn" data-action="copyCode">Kopyala</button> <button class="btn ghost" data-action="hideCode">Kapat</button></div></div>';
+    }
+    if(!adminPlayers)return h+'<span class="state">Yükleniyor…</span></div>';
+    h+=adminPlayers.map(function(p){
+      var st=p.claimed?'<span class="chipst ok">Üye</span>':(p.has_code?'<span class="chipst wait">Kod bekliyor</span>':'<span class="chipst">Sahiplenilmemiş</span>');
+      var sure=pendingReset===p.id;
+      return '<div class="prow"><b>'+esc(p.nick)+'</b>'+st+'<span class="state">'+p.preds+' tahmin</span><span class="grow"></span>'+
+        '<button class="btn ghost" data-action="resetPlayer" data-id="'+esc(p.id)+'">'+(sure?'Emin misin? Tekrar bas':(p.claimed?'Şifreyi sıfırla (yeni kod)':'Kod üret'))+'</button></div>';
+    }).join("");
+    return h+'</div>';
+  }
+  async function loadAdminPlayers(){
+    if(!isAdmin())return;
+    var r=await adminCall("admin_list_players",{});
+    if(r&&r.ok){adminPlayers=r.players;if(tab==="admin")render()}
+  }
+  async function resetPlayer(id){
+    var p=(adminPlayers||[]).find(function(x){return x.id===id});
+    if(p&&p.claimed&&pendingReset!==id){pendingReset=id;render();setTimeout(function(){if(pendingReset===id){pendingReset=null;render()}},4000);return}
+    pendingReset=null;
+    var r=await adminCall("admin_reset_player",{p_id:id});
+    if(r&&r.ok){newCode={nick:p?p.nick:"",code:r.code};await loadAdminPlayers();render()}
+  }
   function adminHtml(){
     var h='<div class="panel"><h2 style="font-size:1.4rem">Maç ekle</h2><div class="fields">'+
       '<label for="nm_home">Ev sahibi<input id="nm_home" list="teamlist" autocomplete="off" placeholder="Fenerbahçe"></label>'+
@@ -632,6 +699,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
       '<label for="nm_time">Başlama saati (TSİ)<input id="nm_time" type="datetime-local"></label></div>'+
       '<datalist id="teamlist">'+TEAMS.map(function(t){return '<option value="'+t.name+'">'}).join("")+'</datalist>'+
       '<div class="foot"><span class="state" id="nm_msg"></span><button class="btn" data-action="addMatch">Maçı ekle</button></div></div>';
+    h+=playersPanel();
     h+='<h2 class="sec">Sonuç gir ve maçları yönet</h2>';
     if(!matches.length)return h+'<div class="empty">Henüz maç yok.</div>';
     return h+'<div class="list">'+matches.slice().sort(function(a,b){return a.kickoff-b.kickoff}).map(function(m){
@@ -656,7 +724,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     chatFootKey=key;
     foot.innerHTML=auth?
       '<div class="chatform"><input id="chatInput" maxlength="300" autocomplete="off" placeholder="Mesaj yaz…" value="'+esc(chatDraft)+'" aria-label="Mesaj"><button class="chatsend" id="chatSend" type="button" data-action="sendChat" aria-label="Gönder">'+SEND_SVG+'</button></div><span class="state warn" id="chatErr">'+esc(chatErr)+'</span>':
-      '<span class="state">Mesaj yazmak için önce sayfadan adını yaz.</span>';
+      '<span class="state">Mesaj yazmak için önce sayfadan giriş yap.</span>';
   }
   function setChatOpen(open){
     chatOpen=!!open;
@@ -704,9 +772,12 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     var text=inp.value.trim();if(!text)return;
     chatBusy=true;var btn=el("chatSend");if(btn)btn.disabled=true;
     try{
-      var r=await rpc("send_chat",{p_nick:auth.nick,p_body:text});
+      var r=await rpc("send_chat",{p_token:auth.token,p_body:text});
       if(r.ok){inp.value="";chatDraft="";chatErr=""}
-      else chatErr=ERR[r.error]||"Gönderilemedi.";
+      else{
+        chatErr=ERR[r.error]||"Gönderilemedi.";
+        if(r.error==="not_logged_in"){auth=null;lsDel("tl_auth");chatFootKey="";render()}
+      }
     }catch(e){chatErr="Bağlantı hatası, tekrar dene."}
     chatBusy=false;
     var b2=el("chatSend");if(b2)b2.disabled=false;
@@ -719,17 +790,59 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   }
 
   /* ---------- işlemler ---------- */
+  /* Giriş kutusu: giriş yap, üye ol ya da yöneticinin verdiği kodla hesabı sahiplen. */
+  var loginMode="login";
+  var HELP={
+    login:"Şifreni unuttuysan yöneticiden yeni kod iste, sonra 'Kodum var' sekmesini kullan.",
+    register:"Yeni üye ol: bir kullanıcı adı seç ve en az 6 karakterlik şifre belirle.",
+    claim:"Daha önce sadece adını yazarak oynadıysan, yöneticinin verdiği kodla hesabını sahiplen ve yeni şifre belirle."
+  };
+  function setMode(m){
+    loginMode=m;
+    document.querySelectorAll(".segb").forEach(function(b){b.setAttribute("aria-pressed",String(b.dataset.mode===m))});
+    el("lblCode").hidden=m!=="claim";
+    el("lblPass2").hidden=m==="login";
+    el("loginBtn").textContent={login:"Giriş yap",register:"Üye ol",claim:"Şifre belirle ve gir"}[m];
+    el("loginPass").setAttribute("autocomplete",m==="login"?"current-password":"new-password");
+    el("lblPass").firstChild.nodeValue=m==="claim"?"Yeni şifre":"Şifre";
+    el("loginHelp").textContent=HELP[m];
+    el("loginMsg").textContent="";
+  }
   async function doLogin(e){
     e.preventDefault();
-    var nick=el("loginNick").value.trim(), msg=el("loginMsg"), btn=el("loginBtn");
-    btn.disabled=true;msg.className="state";msg.textContent="Kaydediliyor…";
+    var nick=el("loginNick").value.trim(), pass=el("loginPass").value, msg=el("loginMsg"), btn=el("loginBtn");
+    var fail=function(t){msg.className="state warn";msg.textContent=t;btn.disabled=false};
+    if(nick.length<2)return fail(ERR.invalid_nick);
+    if(!pass)return fail("Şifreni yaz.");
+    var rname,args;
+    if(loginMode==="login"){rname="member_login";args={p_nick:nick,p_password:pass}}
+    else{
+      if(pass!==el("loginPass2").value)return fail("İki şifre aynı değil.");
+      if(pass.length<6)return fail(ERR.invalid_password);
+      if(loginMode==="register"){rname="member_register";args={p_nick:nick,p_password:pass}}
+      else{rname="member_claim";args={p_nick:nick,p_code:el("loginCode").value.trim(),p_password:pass}}
+    }
+    btn.disabled=true;msg.className="state";msg.textContent="Kontrol ediliyor…";
     try{
-      var r=await rpc("player_login",{p_nick:nick});
-      if(!r.ok){msg.className="state warn";msg.textContent=ERR[r.error]||"Kaydedilemedi.";btn.disabled=false;return}
-      auth={id:r.id,nick:r.nick};lsSet("tl_auth",auth);msg.textContent="";
+      var r=await rpc(rname,args);
+      if(!r.ok)return fail(ERR[r.error]||"İşlem yapılamadı.");
+      auth={id:r.id,nick:r.nick,token:r.token};lsSet("tl_auth",auth);msg.textContent="";
+      el("loginPass").value="";el("loginPass2").value="";el("loginCode").value="";
       await load();render();
-    }catch(err){msg.className="state warn";msg.textContent="Bağlantı hatası, tekrar dene."}
+    }catch(err){return fail("Bağlantı hatası, tekrar dene.")}
     btn.disabled=false;
+  }
+  async function doPw(e){
+    e.preventDefault();
+    var msg=el("pwMsg"),o=el("pwOld").value,n=el("pwNew").value;
+    if(!auth)return;
+    if(n.length<6){msg.className="state warn";msg.textContent=ERR.invalid_password;return}
+    msg.className="state";msg.textContent="Kaydediliyor…";
+    try{
+      var r=await rpc("member_change_password",{p_token:auth.token,p_old:o,p_new:n});
+      if(r.ok){msg.className="state ok";msg.textContent="Şifren değişti.";el("pwOld").value="";el("pwNew").value="";setTimeout(function(){el("pwbox").hidden=true;msg.textContent=""},1200)}
+      else{msg.className="state warn";msg.textContent=r.error==="wrong_credentials"?"Şimdiki şifre yanlış.":(ERR[r.error]||"Değiştirilemedi.")}
+    }catch(err){msg.className="state warn";msg.textContent="Bağlantı hatası."}
   }
   async function savePred(mid){
     if(!auth)return;
@@ -737,11 +850,11 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     var d=drafts[mid]||{}, h=parseInt(d.h,10), a=parseInt(d.a,10);
     if(isNaN(h)||isNaN(a)||h<0||a<0||h>30||a>30)return;
     try{
-      var r=await rpc("submit_prediction",{p_nick:auth.nick,p_match:mid,p_h:h,p_a:a});
+      var r=await rpc("submit_prediction",{p_token:auth.token,p_match:mid,p_h:h,p_a:a});
       if(r.ok){delete drafts[mid];delete flash[mid]}
       else{
         flash[mid]=ERR[r.error]||"Kaydedilemedi.";if(r.error==="closed")flash[mid]="Tahmin süresi doldu (maçtan 5 saat önce kapanır).";
-        if(r.error==="unknown_player"){auth=null;lsDel("tl_auth");flash[mid]="Adın bulunamadı, adını tekrar yaz."}
+        if(r.error==="not_logged_in"){auth=null;lsDel("tl_auth");chatFootKey=""}
       }
     }catch(e){flash[mid]="Bağlantı hatası, tekrar dene."}
     await load();render();
@@ -778,15 +891,16 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     var pw=el("adminPass").value,msg=el("adminMsg");msg.className="state";msg.textContent="Kontrol ediliyor…";
     try{
       var r=await rpc("admin_check",{p_admin:pw});
-      if(r.ok){adminPass=pw;ssSet("tl_admin",pw);el("adminbox").hidden=true;el("adminPass").value="";msg.textContent="";tab="admin";render()}
+      if(r.ok){adminPass=pw;ssSet("tl_admin",pw);el("adminbox").hidden=true;el("adminPass").value="";msg.textContent="";tab="admin";render();loadAdminPlayers()}
       else{msg.className="state warn";msg.textContent=ERR.wrong_admin}
     }catch(err){msg.className="state warn";msg.textContent="Bağlantı hatası."}
   }
 
   /* ---------- olaylar ---------- */
   document.addEventListener("click",function(e){
-    var t=e.target.closest("[data-tab],[data-sub],[data-euro],[data-filter],[data-action]");if(!t)return;
-    if(t.dataset.tab){tab=t.dataset.tab;render();return}
+    var t=e.target.closest("[data-tab],[data-sub],[data-euro],[data-mode],[data-filter],[data-action]");if(!t)return;
+    if(t.dataset.tab){tab=t.dataset.tab;render();if(tab==="admin")loadAdminPlayers();return}
+    if(t.dataset.mode){setMode(t.dataset.mode);return}
     if(t.dataset.euro){euro=t.dataset.euro;render();return}
     if(t.dataset.sub){sub=t.dataset.sub;render();return}
     if(t.dataset.filter){filter=t.dataset.filter;render();return}
@@ -794,8 +908,13 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     if(a==="sendChat")sendChat();
     else if(a==="delChat")delChat(t.dataset.id);
     else if(a==="savePred")savePred(m);
-    else if(a==="signout"){auth=null;lsDel("tl_auth");chatFootKey="";render()}
-    else if(a==="logout"){var old=auth&&auth.nick;auth=null;lsDel("tl_auth");render();el("loginNick").value=old||"";el("loginNick").focus()}
+    else if(a==="signout"){var tk=auth&&auth.token;auth=null;lsDel("tl_auth");chatFootKey="";el("pwbox").hidden=true;render();if(tk)rpc("member_logout",{p_token:tk}).catch(function(){})}
+    else if(a==="showPw"){el("pwbox").hidden=false;el("pwOld").focus()}
+    else if(a==="resetPlayer")resetPlayer(t.dataset.id);
+    else if(a==="hideCode"){newCode=null;render()}
+    else if(a==="copyCode"){
+      if(newCode){var cb=t;try{navigator.clipboard.writeText(newCode.code).then(function(){cb.textContent="Kopyalandı"},function(){cb.textContent="Kopyalanamadı"})}catch(err){cb.textContent="Kopyalanamadı"}}
+    }
     else if(a==="addMatch")addMatch();
     else if(a==="saveResult")saveResult(m);
     else if(a==="clearResult")clearResult(m);
@@ -820,6 +939,8 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   el("chatClose").addEventListener("click",function(){setChatOpen(false);el("chatFab").focus()});
   document.addEventListener("keydown",function(e){if(e.key==="Escape"&&chatOpen){setChatOpen(false);el("chatFab").focus()}});
   el("loginbox").addEventListener("submit",doLogin);
+  el("pwbox").addEventListener("submit",doPw);
+  el("pwCancel").addEventListener("click",function(){el("pwbox").hidden=true});
   el("adminbox").addEventListener("submit",doAdminLogin);
   el("adminLink").addEventListener("click",function(){el("adminbox").hidden=false;el("adminPass").focus()});
   el("adminCancel").addEventListener("click",function(){el("adminbox").hidden=true});
@@ -833,10 +954,18 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   })();
 
   /* ---------- başlangıç ---------- */
-  var saved=lsGet("tl_auth");if(saved&&saved.id&&saved.nick)auth={id:saved.id,nick:saved.nick};
+  var saved=lsGet("tl_auth");if(saved&&saved.id&&saved.nick&&saved.token)auth={id:saved.id,nick:saved.nick,token:saved.token};
   var sa=ssGet("tl_admin");if(sa)adminPass=sa;
+  setMode("login");
   render();
-  if(BASE&&KEY){load();loadChat()}else loading=false,render();
+  if(BASE&&KEY){
+    load();loadChat();
+    /* Kayıtlı oturum hâlâ geçerli mi? Değilse (süresi dolmuş, şifre sıfırlanmış) çıkış yaptır. */
+    if(auth)rpc("member_me",{p_token:auth.token}).then(function(r){
+      if(r&&r.ok){auth.nick=r.nick}
+      else if(r&&r.error==="not_logged_in"){auth=null;lsDel("tl_auth");chatFootKey="";render()}
+    }).catch(function(){});
+  }else loading=false,render();
 })();
 </script>
 </body>
