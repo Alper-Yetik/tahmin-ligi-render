@@ -235,6 +235,15 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 .chatform input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 4px var(--accent-soft)}
 .chatsend{flex:none;width:44px;height:44px;border-radius:50%;border:0;display:grid;place-items:center;color:var(--accent-ink);background:linear-gradient(135deg,var(--accent),var(--accent2))}
 .chatsend:disabled{opacity:.45}
+.chatattach{flex:none;width:40px;height:40px;border-radius:50%;border:1.5px solid var(--line);background:var(--field);color:var(--muted);display:grid;place-items:center}
+.chatattach:hover{color:var(--ink)}
+.chatattach svg{width:20px;height:20px}
+.chatprev{display:flex;align-items:center;gap:10px}
+.chatprev img{height:56px;width:56px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.chatprev[hidden]{display:none}
+.chatimg{display:block;max-width:100%;max-height:260px;border-radius:10px;margin-top:6px;cursor:zoom-in;background:var(--field)}
+.lightbox{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.88);display:grid;place-items:center;padding:16px;cursor:zoom-out}
+.lightbox img{max-width:100%;max-height:100%;border-radius:8px}
 .chatsend svg{width:20px;height:20px}
 #chatErr{min-height:1.1em;font-size:.78rem}
 
@@ -349,6 +358,8 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   var COMPS=["Süper Lig","Şampiyonlar Ligi","Avrupa Ligi","Konferans Ligi","Türkiye Kupası","Süper Kupa"];
   var EXACT=5, DIFF=3, SIDE=2;
   var ERR={
+    invalid_image:"Görsel gönderilemedi, başka bir fotoğraf dene.",
+    upload_failed:"Görsel yüklenemedi, tekrar dene.",
     invalid_nick:"Kullanıcı adı 2 ile 24 karakter arasında olmalı (< ve > kullanılamaz).",
     invalid_password:"Şifre en az 6 karakter olmalı.",
     wrong_credentials:"Kullanıcı adı ya da şifre yanlış.",
@@ -722,7 +733,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   }
 
   /* ---------- sohbet ---------- */
-  var chat=[], chatDraft="", chatSeen=+(lsGet("tl_chat_seen")||0), chatBusy=false, chatErr="", chatTick=0, chatOpen=false, chatFootKey="";
+  var chat=[], chatDraft="", chatSeen=+(lsGet("tl_chat_seen")||0), chatBusy=false, chatErr="", chatTick=0, chatOpen=false, chatFootKey="", chatPend=null, chatStickUntil=0;
   var SEND_SVG='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4l17.4-8.1a.4.4 0 0 0 0-.7L3.4 3.6a.4.4 0 0 0-.56.5l2.3 6.6 8.6 1.3-8.6 1.3-2.3 6.6a.4.4 0 0 0 .56.5z"/></svg>';
   /* Mesaj yazma alanı: giriş durumu değişince yeniden çizilir, yoksa yazı kutusuna dokunmaz. */
   function renderChatFoot(){
@@ -731,8 +742,9 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     if(key===chatFootKey)return;
     chatFootKey=key;
     foot.innerHTML=auth?
-      '<div class="chatform"><input id="chatInput" maxlength="300" autocomplete="off" placeholder="Mesaj yaz…" value="'+esc(chatDraft)+'" aria-label="Mesaj"><button class="chatsend" id="chatSend" type="button" data-action="sendChat" aria-label="Gönder">'+SEND_SVG+'</button></div><span class="state warn" id="chatErr">'+esc(chatErr)+'</span>':
+      '<div class="chatprev" id="chatPrev" hidden></div><div class="chatform"><button class="chatattach" type="button" data-action="pickImg" aria-label="Fotoğraf ekle">'+IMG_SVG+'</button><input type="file" id="chatFile" accept="image/*" hidden><input id="chatInput" maxlength="300" autocomplete="off" placeholder="Mesaj yaz…" value="'+esc(chatDraft)+'" aria-label="Mesaj"><button class="chatsend" id="chatSend" type="button" data-action="sendChat" aria-label="Gönder">'+SEND_SVG+'</button></div><span class="state warn" id="chatErr">'+esc(chatErr)+'</span>':
       '<span class="state">Mesaj yazmak için önce sayfadan giriş yap.</span>';
+    updateChatPrev();
   }
   function setChatOpen(open){
     chatOpen=!!open;
@@ -773,6 +785,60 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     if(k===dayKey(Date.now()-86400000))return "Dün";
     try{return new Date(ms).toLocaleDateString("tr-TR",{timeZone:"Europe/Istanbul",day:"numeric",month:"short",weekday:"short"})}catch(e){return k}
   }
+  var IMG_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>';
+  function updateChatPrev(){
+    var p=el("chatPrev");if(!p)return;
+    if(!chatPend){p.hidden=true;p.innerHTML="";return}
+    p.hidden=false;
+    p.innerHTML='<img alt="Seçilen fotoğraf" src="'+chatPend.url+'"><button class="link" type="button" data-action="clearImg">Kaldır</button>';
+  }
+  function clearChatImg(){if(chatPend){URL.revokeObjectURL(chatPend.url);chatPend=null}updateChatPrev()}
+  /* Fotoğrafı tarayıcıda küçültür: en çok 1280 px, jpeg, 500 KB civarı. */
+  function shrinkImage(file){
+    return new Promise(function(res,rej){
+      var url=URL.createObjectURL(file), img=new Image();
+      img.onload=function(){
+        URL.revokeObjectURL(url);
+        var tries=[[1280,.78],[1024,.68],[800,.6]], i=0;
+        (function next(){
+          var sc=Math.min(1,tries[i][0]/Math.max(img.width,img.height)), c=document.createElement("canvas");
+          c.width=Math.max(1,Math.round(img.width*sc));c.height=Math.max(1,Math.round(img.height*sc));
+          var ctx=c.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);
+          c.toBlob(function(b){
+            if(!b)return rej(new Error("blob"));
+            if(b.size<=500000||i>=tries.length-1){if(b.size<=600000)res(b);else rej(new Error("big"))}
+            else{i++;next()}
+          },"image/jpeg",tries[i][1]);
+        })();
+      };
+      img.onerror=function(){URL.revokeObjectURL(url);rej(new Error("img"))};
+      img.src=url;
+    });
+  }
+  function randName(){var a=new Uint8Array(16);crypto.getRandomValues(a);return Array.prototype.map.call(a,function(x){return ("0"+x.toString(16)).slice(-2)}).join("")+".jpg"}
+  async function uploadChatImg(blob){
+    var name=randName();
+    try{
+      var h={apikey:KEY,"Content-Type":"image/jpeg","x-upsert":"false"};
+      if(KEY.indexOf("eyJ")===0)h.Authorization="Bearer "+KEY;
+      var r=await fetch(BASE+"/storage/v1/object/chat-images/"+name,{method:"POST",headers:h,body:blob});
+      if(!r.ok)return {ok:false,error:"upload_failed"};
+      return {ok:true,name:name};
+    }catch(e){return {ok:false,error:"upload_failed"}}
+  }
+  function openLightbox(src){
+    var d=document.createElement("div");d.className="lightbox";d.innerHTML='<img alt="Görsel" src="'+esc(src)+'">';
+    function close(){d.remove();document.removeEventListener("keydown",k,true)}
+    function k(e){if(e.key==="Escape"){e.stopPropagation();close()}}
+    d.addEventListener("click",close);document.addEventListener("keydown",k,true);document.body.appendChild(d);
+  }
+  async function pickChatImg(f){
+    if(!f)return;
+    var er=el("chatErr");
+    if(f.type&&!/^image\//.test(f.type)){chatErr="Sadece fotoğraf eklenebilir.";if(er)er.textContent=chatErr;return}
+    try{var b=await shrinkImage(f);clearChatImg();chatPend={blob:b,url:URL.createObjectURL(b)};chatErr="";if(er)er.textContent="";updateChatPrev()}
+    catch(e){chatErr="Fotoğraf okunamadı, başka bir tane dene.";if(er)er.textContent=chatErr}
+  }
   function chatListHtml(){
     if(!chat.length)return '<div class="state">Henüz mesaj yok. İlk mesajı sen yaz.</div>';
     /* Her günün mesajları kendi grubunda durur. Gün etiketi grubunun içinde üste yapışır (sticky),
@@ -788,7 +854,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
       }
       html+='<div class="msg'+(mine?' mine':'')+'"><span class="who">'+esc(m.nick)+'</span> <span class="t">'+fmtTime(ts)+'</span>'+
         (isAdmin()?' <button class="link" data-action="delChat" data-id="'+m.id+'" aria-label="Mesajı sil">sil</button>':'')+
-        '<div>'+esc(m.body)+'</div></div>';
+        (m.body?'<div>'+esc(m.body)+'</div>':'')+(m.image?'<img class="chatimg" loading="lazy" data-action="zoom" alt="Gönderilen fotoğraf" src="'+esc(BASE+"/storage/v1/object/public/chat-images/"+m.image)+'">':'')+'</div>';
     });
     return html+(lastDay?'</div>':'');
   }
@@ -799,7 +865,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     if(chatOpen&&box){
       var near=force||box.scrollHeight-box.scrollTop-box.clientHeight<80;
       var html=chatListHtml();
-      if(box.dataset.sig!==html){box.dataset.sig=html;box.innerHTML=html;if(near){chatProg=Date.now();box.scrollTop=box.scrollHeight}}
+      if(box.dataset.sig!==html){box.dataset.sig=html;box.innerHTML=html;chatStickUntil=near?Date.now()+4000:0;if(near){chatProg=Date.now();box.scrollTop=box.scrollHeight}}
       if(!chatScrolling)applyDayIdle(true);
     }
     var unread=chat.filter(function(m){return m.id>chatSeen&&!(auth&&m.player_id===auth.id)}).length;
@@ -816,11 +882,15 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   }
   async function sendChat(){
     var inp=el("chatInput");if(!inp||!auth||chatBusy)return;
-    var text=inp.value.trim();if(!text)return;
+    var text=inp.value.trim();if(!text&&!chatPend)return;
     chatBusy=true;var btn=el("chatSend");if(btn)btn.disabled=true;
     try{
-      var r=await rpc("send_chat",{p_token:auth.token,p_body:text});
-      if(r.ok){inp.value="";chatDraft="";chatErr=""}
+      var r;
+      if(chatPend){
+        var up=await uploadChatImg(chatPend.blob);
+        r=up.ok?await rpc("send_chat_image",{p_token:auth.token,p_body:text,p_image:up.name}):up;
+      }else r=await rpc("send_chat",{p_token:auth.token,p_body:text});
+      if(r.ok){inp.value="";chatDraft="";chatErr="";clearChatImg()}
       else{
         chatErr=ERR[r.error]||"Gönderilemedi.";
         if(r.error==="not_logged_in"){auth=null;lsDel("tl_auth");chatFootKey="";render()}
@@ -971,6 +1041,9 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     if(t.dataset.filter){filter=t.dataset.filter;render();return}
     var a=t.dataset.action,m=t.dataset.m;
     if(a==="sendChat")sendChat();
+    else if(a==="pickImg"){var fi=el("chatFile");if(fi)fi.click()}
+    else if(a==="clearImg")clearChatImg();
+    else if(a==="zoom")openLightbox(t.getAttribute("src"));
     else if(a==="delChat")delChat(t.dataset.id);
     else if(a==="savePred")savePred(m);
     else if(a==="signout"){var tk=auth&&auth.token;auth=null;lsDel("tl_auth");chatFootKey="";el("pwbox").hidden=true;setMode("login");render();if(tk)rpc("member_logout",{p_token:tk}).catch(function(){})}
@@ -994,6 +1067,9 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     if(btn)btn.disabled=!(h!==""&&a!==""&&+h>=0&&+a>=0&&+h<=30&&+a<=30);
   });
   document.addEventListener("input",function(e){if(e.target&&e.target.id==="chatInput")chatDraft=e.target.value});
+  document.addEventListener("change",function(e){var t=e.target;if(t&&t.id==="chatFile"){var f=t.files&&t.files[0];t.value="";pickChatImg(f)}});
+  /* Görsel yüklenince yükseklik değişir: en alttaysak yeniden en alta kaydır. */
+  document.addEventListener("load",function(e){var t=e.target;if(t&&t.classList&&t.classList.contains("chatimg")&&Date.now()<chatStickUntil){var box=el("chatlist");if(box){chatProg=Date.now();box.scrollTop=box.scrollHeight}}},true);
   document.addEventListener("keydown",function(e){if(e.key==="Enter"&&e.target&&e.target.id==="chatInput"){e.preventDefault();sendChat()}});
   /* Sohbet açıkken 4 saniyede bir, değilken 20 saniyede bir kontrol et (okunmamış sayısı için). */
   setInterval(function(){
