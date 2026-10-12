@@ -217,17 +217,16 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 .chathead span{font-size:.78rem;opacity:.85}
 .chatx{background:rgba(255,255,255,.2);border:0;border-radius:50%;width:32px;height:32px;display:grid;place-items:center;color:inherit;font-size:1.2rem;line-height:1}
 .chatbody{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
-.chatlist{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--bg);overscroll-behavior:contain}
+.chatlist{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:0 16px 16px;background:var(--bg);overscroll-behavior:contain}
 .chatlist .state{text-align:center;margin:auto}
 .msg{align-self:flex-start;max-width:86%;background:var(--surface);border:1px solid var(--line);border-radius:16px 16px 16px 4px;padding:8px 12px;overflow-wrap:anywhere;min-width:0;box-shadow:var(--shadow)}
 .msg.mine{align-self:flex-end;border-radius:16px 16px 4px 16px;border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--accent-ink)}
 .msg .who{font-family:var(--display);font-weight:700;font-size:1.02rem;letter-spacing:.03em}
 .daygrp{display:flex;flex-direction:column;gap:10px;min-width:0}
-.daysep{display:flex;justify-content:center;padding:6px 0 2px}
-.floatday{position:absolute;top:10px;left:0;right:0;display:flex;justify-content:center;pointer-events:none;opacity:0;z-index:4}
-.floatday.show{opacity:1}
-@media (prefers-reduced-motion:no-preference){.floatday{transition:opacity .25s}}
-.daysep span,.floatday span{background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 14px;font-size:.72rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;box-shadow:var(--shadow)}
+.daysep{position:sticky;top:0;z-index:3;display:flex;justify-content:center;padding:10px 0 4px;pointer-events:none}
+.daysep.idle span{opacity:0}
+@media (prefers-reduced-motion:no-preference){.daysep span{transition:opacity .3s}}
+.daysep span{background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 14px;font-size:.72rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;box-shadow:var(--shadow)}
 .msg .t{opacity:.65;font-size:.72rem;font-variant-numeric:tabular-nums}
 .msg.mine .link{color:inherit}
 .chatfoot{padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;gap:6px}
@@ -338,7 +337,6 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   </div>
   <div class="chatbody">
     <div id="chatlist" class="chatlist" aria-live="polite"></div>
-    <div id="chatFloat" class="floatday" aria-hidden="true"><span></span></div>
   </div>
   <div id="chatfoot" class="chatfoot"></div>
 </section>
@@ -747,22 +745,25 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
       var inp=el("chatInput");if(inp)setTimeout(function(){inp.focus()},50);
     } else updateChatUI(false);
   }
-  /* WhatsApp gibi: kaydırırken üstte o anki günün etiketi belirir, durunca kaybolur.
-     Mesajların arasındaki gün ayraçları ise yerinde kalır. */
-  var chatProg=0, floatTimer=null;
+  /* WhatsApp gibi: gün etiketi (sticky) tepeye yapışır, yeni güne gelince eskisini iter.
+     Kaydırma durunca sadece tepeye yapışmış (doğal yerinden yukarı kaymış) etiket kaybolur,
+     mesajların arasında kendi yerinde duran ayraçlar görünmeye devam eder. */
+  var chatProg=0, idleTimer=null, chatScrolling=false;
+  function applyDayIdle(idle){
+    var box=el("chatlist");if(!box)return;
+    var top=box.getBoundingClientRect().top;
+    box.querySelectorAll(".daygrp").forEach(function(g){
+      var sep=g.querySelector(".daysep");if(!sep)return;
+      var stuck=g.getBoundingClientRect().top<top-1; // grup tepeden yukarı taşmış, etiket yapışık
+      sep.classList.toggle("idle",idle&&stuck);
+    });
+  }
   function onChatScroll(){
     if(Date.now()-chatProg<250)return; // koddan yapılan otomatik kaydırmada etiket çıkmasın
-    var box=el("chatlist"),fl=el("chatFloat");if(!box||!fl)return;
-    var top=box.getBoundingClientRect().top, label="";
-    var groups=box.querySelectorAll(".daygrp");
-    for(var i=0;i<groups.length;i++){
-      if(groups[i].getBoundingClientRect().top-top<=40){label=groups[i].querySelector(".daysep span").textContent}else break;
-    }
-    if(!label)return;
-    fl.firstChild.textContent=label;
-    fl.classList.add("show");
-    clearTimeout(floatTimer);
-    floatTimer=setTimeout(function(){fl.classList.remove("show")},1300);
+    chatScrolling=true;
+    applyDayIdle(false);
+    clearTimeout(idleTimer);
+    idleTimer=setTimeout(function(){chatScrolling=false;applyDayIdle(true)},1300);
   }
   /* Gün ayracı: Türkiye saatine göre "Bugün", "Dün" ya da "9 Eki Cum". */
   function dayKey(ms){try{return new Date(ms).toLocaleDateString("en-CA",{timeZone:"Europe/Istanbul"})}catch(e){return ""}}
@@ -799,6 +800,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
       var near=force||box.scrollHeight-box.scrollTop-box.clientHeight<80;
       var html=chatListHtml();
       if(box.dataset.sig!==html){box.dataset.sig=html;box.innerHTML=html;if(near){chatProg=Date.now();box.scrollTop=box.scrollHeight}}
+      if(!chatScrolling)applyDayIdle(true);
     }
     var unread=chat.filter(function(m){return m.id>chatSeen&&!(auth&&m.player_id===auth.id)}).length;
     var badge=el("chatBadge");
