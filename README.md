@@ -72,7 +72,7 @@ Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspb
 ### 1. Supabase
 
 1. supabase.com'da proje oluştur.
-2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `events.sql`, `standings.sql`, `chat.sql`, sonra **`members.sql`** (eski şifresiz giriş fonksiyonlarını siler ve üyelik sistemini kurar), en son **`telegram_link.sql`** (Telegram bağlantısını üyelik oturumuna bağlar).
+2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `events.sql`, `standings.sql`, `chat.sql`, **`chat_images.sql`** (sohbete fotoğraf ekleme), sonra **`members.sql`** (eski şifresiz giriş fonksiyonlarını siler ve üyelik sistemini kurar), en son **`telegram_link.sql`** (Telegram bağlantısını üyelik oturumuna bağlar).
 3. Yönetici şifresini belirle (`BURAYA_SIFRE` yerine kendi şifren):
 
 ```sql
@@ -126,6 +126,8 @@ Sitedeki **Sohbet** sekmesinde oyuncular adlarıyla mesaj yazar (en fazla 300 ka
 Mesajlar gün gün gruplanır: günlerin arasında "Bugün", "Dün", "9 Eki Cum" gibi (Türkiye saatine göre) ayraç durur, her mesajın yanında saati yazar. Sohbeti kaydırırken o anki günün etiketi üstte yapışık kalır, yeni güne gelince eski günün etiketini yukarı iterek yerine geçer. Kaydırmayı bırakınca (yaklaşık 1,3 saniye sonra) sadece tepeye yapışmış etiket kaybolur, mesajların arasındaki ayraçlar yerinde kalır (WhatsApp gibi).
 
 Mesaj yazmak için giriş yapmak gerekir, mesaj üyenin kendi adıyla görünür. Tablo (`chat_messages`) tarayıcıdan doğrudan yazılamaz, sadece oturum anahtarı isteyen `send_chat` fonksiyonuyla yazılır. Kurulum: `chat.sql`, `members.sql`.
+
+**Fotoğraf:** Mesaj yazma kutusunun yanındaki resim düğmesiyle fotoğraf eklenebilir (yazı olmadan da gönderilir). Fotoğraf tarayıcıda küçültülür (en çok 1280 piksel, jpeg, yaklaşık 500 KB), Supabase Storage'daki herkese açık `chat-images` klasörüne rastgele bir adla yüklenir ve mesaja sadece bu ad yazılır. Sohbette küçük görünür, tıklayınca büyür. Yalnızca giriş yapmış üyeler `send_chat_image` fonksiyonuyla gönderebilir, dakikada en çok 10 fotoğraf sınırı vardır. Yönetici mesajı silince fotoğraf sohbetten kalkar ama dosya klasörde kalır (Supabase panelindeki Storage bölümünden elle silinebilir). Kurulum: `chat_images.sql`.
 
 ## Üyelik
 
