@@ -123,7 +123,7 @@ python3 sync_fixtures.py --dry-run     # önce dene, hiçbir şey eklemez
 
 Sitedeki **Sohbet** sekmesinde oyuncular adlarıyla mesaj yazar (en fazla 300 karakter). Sayfa açıkken 4 saniyede bir yenilenir, başka sekmedeyken okunmamış mesaj sayısı sekmenin yanında görünür. Bir oyuncu 2 saniyede birden fazla, tüm sohbet dakikada 40'tan fazla mesaj yazamaz. Son 500 mesaj tutulur, eskileri otomatik silinir. Yönetici girişi yapınca her mesajın yanında "sil" bağlantısı çıkar.
 
-Mesajlar gün gün gruplanır: günlerin arasında "Bugün", "Dün", "9 Eki Cum" gibi (Türkiye saatine göre) ayraç durur, her mesajın yanında saati yazar. Sohbeti kaydırırken üstte o anki günün etiketi geçici olarak belirir, kaydırmayı bırakınca yaklaşık 1,3 saniyede kaybolur (WhatsApp gibi).
+Mesajlar gün gün gruplanır: günlerin arasında "Bugün", "Dün", "9 Eki Cum" gibi (Türkiye saatine göre) ayraç durur, her mesajın yanında saati yazar. Sohbeti kaydırırken o anki günün etiketi üstte yapışık kalır, yeni güne gelince eski günün etiketini yukarı iterek yerine geçer. Kaydırmayı bırakınca (yaklaşık 1,3 saniye sonra) sadece tepeye yapışmış etiket kaybolur, mesajların arasındaki ayraçlar yerinde kalır (WhatsApp gibi).
 
 Mesaj yazmak için giriş yapmak gerekir, mesaj üyenin kendi adıyla görünür. Tablo (`chat_messages`) tarayıcıdan doğrudan yazılamaz, sadece oturum anahtarı isteyen `send_chat` fonksiyonuyla yazılır. Kurulum: `chat.sql`, `members.sql`.
 
