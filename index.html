@@ -221,6 +221,8 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 .msg{align-self:flex-start;max-width:86%;background:var(--surface);border:1px solid var(--line);border-radius:16px 16px 16px 4px;padding:8px 12px;overflow-wrap:anywhere;min-width:0;box-shadow:var(--shadow)}
 .msg.mine{align-self:flex-end;border-radius:16px 16px 4px 16px;border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--accent-ink)}
 .msg .who{font-family:var(--display);font-weight:700;font-size:1.02rem;letter-spacing:.03em}
+.daysep{display:flex;align-items:center;gap:10px;margin:6px 0 2px;color:var(--muted);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.daysep::before,.daysep::after{content:"";flex:1;height:1px;background:var(--line)}
 .msg .t{opacity:.65;font-size:.72rem;font-variant-numeric:tabular-nums}
 .msg.mine .link{color:inherit}
 .chatfoot{padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;gap:6px}
@@ -737,11 +739,22 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
       var inp=el("chatInput");if(inp)setTimeout(function(){inp.focus()},50);
     } else updateChatUI(false);
   }
+  /* Gün ayracı: Türkiye saatine göre "Bugün", "Dün" ya da "9 Eki Cum". */
+  function dayKey(ms){try{return new Date(ms).toLocaleDateString("en-CA",{timeZone:"Europe/Istanbul"})}catch(e){return ""}}
+  function dayLabel(ms){
+    var k=dayKey(ms);
+    if(k===dayKey(Date.now()))return "Bugün";
+    if(k===dayKey(Date.now()-86400000))return "Dün";
+    try{return new Date(ms).toLocaleDateString("tr-TR",{timeZone:"Europe/Istanbul",day:"numeric",month:"short",weekday:"short"})}catch(e){return k}
+  }
   function chatListHtml(){
     if(!chat.length)return '<div class="state">Henüz mesaj yok. İlk mesajı sen yaz.</div>';
+    var lastDay="";
     return chat.map(function(m){
       var mine=auth&&m.player_id===auth.id;
-      return '<div class="msg'+(mine?' mine':'')+'"><span class="who">'+esc(m.nick)+'</span> <span class="t">'+fmtTime(Date.parse(m.created_at))+'</span>'+
+      var ts=Date.parse(m.created_at), dk=dayKey(ts), sep="";
+      if(dk!==lastDay){lastDay=dk;sep='<div class="daysep"><span>'+esc(dayLabel(ts))+'</span></div>'}
+      return sep+'<div class="msg'+(mine?' mine':'')+'"><span class="who">'+esc(m.nick)+'</span> <span class="t">'+fmtTime(Date.parse(m.created_at))+'</span>'+
         (isAdmin()?' <button class="link" data-action="delChat" data-id="'+m.id+'" aria-label="Mesajı sil">sil</button>':'')+
         '<div>'+esc(m.body)+'</div></div>';
     }).join("");
