@@ -216,13 +216,13 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 .chathead b{display:block;font-family:var(--display);font-size:1.4rem;letter-spacing:.06em;text-transform:uppercase;line-height:1}
 .chathead span{font-size:.78rem;opacity:.85}
 .chatx{background:rgba(255,255,255,.2);border:0;border-radius:50%;width:32px;height:32px;display:grid;place-items:center;color:inherit;font-size:1.2rem;line-height:1}
-.chatlist{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--bg);overscroll-behavior:contain}
+.chatlist{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:0 16px 16px;background:var(--bg);overscroll-behavior:contain}
 .chatlist .state{text-align:center;margin:auto}
 .msg{align-self:flex-start;max-width:86%;background:var(--surface);border:1px solid var(--line);border-radius:16px 16px 16px 4px;padding:8px 12px;overflow-wrap:anywhere;min-width:0;box-shadow:var(--shadow)}
 .msg.mine{align-self:flex-end;border-radius:16px 16px 4px 16px;border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--accent-ink)}
 .msg .who{font-family:var(--display);font-weight:700;font-size:1.02rem;letter-spacing:.03em}
 .daygrp{display:flex;flex-direction:column;gap:10px;min-width:0}
-.daysep{position:sticky;top:0;z-index:3;display:flex;justify-content:center;padding:2px 0 4px;pointer-events:none}
+.daysep{position:sticky;top:0;z-index:3;display:flex;justify-content:center;padding:10px 0 4px;pointer-events:none}
 .daysep span{background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 14px;font-size:.72rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;box-shadow:var(--shadow)}
 .msg .t{opacity:.65;font-size:.72rem;font-variant-numeric:tabular-nums}
 .msg.mine .link{color:inherit}
