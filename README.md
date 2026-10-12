@@ -132,7 +132,7 @@ Mesaj yazmak için giriş yapmak gerekir, mesaj üyenin kendi adıyla görünür
 - **Kilitlenme:** 5 yanlış şifre ya da kod denemesinde hesap 15 dakika kilitlenir.
 - **Şifre değiştirme:** Giriş yapmış üye "şifre değiştir" ile değiştirir, diğer cihazlardaki oturumları kapanır.
 - **Eski (şifresiz) oyuncular ve şifresini unutanlar:** Yönetici girişi yapınca **Yönetim** sekmesindeki **Oyuncular** listesinden oyuncunun yanındaki "Kod üret" ya da "Şifreyi sıfırla" düğmesine basar. Çıkan tek kullanımlık kodu (örn. `A3F0-9C21`) oyuncuya iletir. Oyuncu **Kodum var** sekmesinde kullanıcı adı, kod ve yeni şifresiyle hesabını sahiplenir. Kod bir kez kullanılır, kodu yönetici sadece üretildiği anda görür.
-- Telegram hatırlatma bağlantısı hâlâ oyuncu kimliğiyle çalışır (bkz. "Bilinen sınırlar").
+- Telegram hatırlatması oturum anahtarına bağlıdır: üye giriş yapınca "Telegram'dan hatırlat"a basar, site 15 dakikalık tek kullanımlık kod üretir (bkz. "Telegram hatırlatması").
 
 ## Canlı puan durumu
 
@@ -180,7 +180,7 @@ Sezon yılı otomatik bulunur (Temmuz'dan itibaren yeni sezon). Takım adları E
 
 ## Telegram hatırlatması
 
-1. Oyuncu siteye adını yazar, üstteki **"Telegram'dan hatırlat"** bağlantısına tıklar ve botta **Başlat**'a basar. Bot oyuncuyu sohbetiyle eşler.
+1. Üye siteye giriş yapar, üstteki **"Telegram'dan hatırlat"** bağlantısına tıklar ve botta **Başlat**'a basar. Site, giriş yapmış üyenin oturum anahtarıyla **15 dakika geçerli, tek kullanımlık bir kod** üretir ve botu o kodla açar (`t.me/uclu_tahmin_bot?start=<kod>`). Bot kodu veritabanına gönderir, kod sadece o üyeyi bağlar. Oyuncu kimliğini bilmek yetmez. Kurulum: `telegram_link.sql`. Kodu bot'a verilen eski (oyuncu kimliğiyle bağlayan) fonksiyon, botu güncelledikten sonra `drop function if exists bot_link_telegram(text, uuid, bigint);` ile silinir.
 2. Bir maçın tahmin kapanışına **3 saat kala** (maçtan 8 saat önce), tahmin girmemiş ve Telegram'ı bağlamış oyunculara bot özel mesaj atar. Aynı maç için bir kez.
 3. Girenlere ve bağlamayanlara mesaj gitmez.
 
@@ -208,7 +208,8 @@ crontab -l                              # zamanlanmış işler
 | Belirti | Olası neden |
 |---|---|
 | Bot cevap vermiyor | `systemctl is-active tahmin-bot` ve `bot.log`'a bak. Eski cron satırı varsa kaldır (iki süreç aynı anda mesaj okuyamaz). |
-| "Telegram'dan hatırlat" bağlantısı çıkmıyor | Önce adını yaz. Sayfayı Ctrl+F5 ile yenile. |
+| "Telegram'dan hatırlat" bağlantısı çıkmıyor | Önce giriş yap. Sayfayı Ctrl+F5 ile yenile. |
+| Bot "Bağlanamadı" diyor | Kodun süresi (15 dk) dolmuş ya da bir kez kullanılmış. Siteden bağlantıya tekrar tıkla. Bot `bot.py` eski sürümse güncelle. |
 | Telegram token `Unauthorized` | Token yanlış kopyalanmış ya da BotFather'da yenilenmiş. `0` (sıfır) ile `O` (harf) karışabilir, kopyala-yapıştır yap. |
 | Skor girilmiyor | `~/tahmin-ligi/log.txt`'ye bak. Gerekirse Yönetim sekmesinden elle gir. |
 | Yeni maç gelmiyor | `fixtures.log`'a bak. ESPN'in veri biçimi değişmiş olabilir. |
@@ -216,7 +217,6 @@ crontab -l                              # zamanlanmış işler
 
 ## Bilinen sınırlar
 
-- Telegram hatırlatması: bağlantı oyuncu kimliği ile çalışır, kimliği bilen biri başka bir oyuncunun hatırlatmasını kendi Telegram'ına yönlendirebilir. Sadece hatırlatma mesajını etkiler.
 - Şifre sıfırlama yöneticiye bağlıdır (e-posta ile kendiliğinden sıfırlama yok).
 - Skor ve fikstür verisi ESPN'in herkese açık verisinden gelir, hatalı ya da gecikmeli olabilir. Skorlar tek kaynaktan alınır.
 - Betiklerin çalışması için Raspberry Pi'nin açık ve internete bağlı olması gerekir.

@@ -26,7 +26,7 @@ STATE_FILE = os.path.join(BASE, "state.json")
 LOG_FILE = os.path.join(BASE, "bot.log")
 SITE_URL = "https://tahmin-ligi-render.onrender.com/"
 REMIND_HOURS = 3  # tahmin kapanışına bu kadar saat kala hatırlat (maçtan 8 saat önce)
-UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+CODE_RE = re.compile(r"^[0-9a-fA-F]{24}$")  # sitenin ürettiği tek kullanımlık bağlantı kodu
 TR = datetime.timezone(datetime.timedelta(hours=3))
 
 
@@ -125,21 +125,22 @@ def handle_updates(bot, wait=0):
             save_state(st)
             continue
         if not text.startswith("/start"):
-            bot.send(chat, "Bu bot, tahmin girmediğin maçlar için sana hatırlatma gönderir. Hatırlatma almak için siteyi aç, adını yaz ve 'Telegram'dan hatırlat' bağlantısına tıkla: " + SITE_URL)
+            bot.send(chat, "Bu bot, tahmin girmediğin maçlar için sana hatırlatma gönderir. Hatırlatma almak için siteye giriş yap ve 'Telegram'dan hatırlat' bağlantısına tıkla: " + SITE_URL)
             save_state(st)
             continue
         parts = text.split(maxsplit=1)
         payload = parts[1].strip() if len(parts) > 1 else ""
-        if UUID_RE.match(payload):
-            s, r = bot.rpc("bot_link_telegram", {"p_player": payload, "p_chat": chat})
+        if CODE_RE.match(payload):
+            # Site, giriş yapmış üyeye 15 dakikalık tek kullanımlık kod verir. Kod sadece o üyeyi bağlar.
+            s, r = bot.rpc("bot_link_telegram", {"p_code": payload.lower(), "p_chat": chat})
             if s == 200 and r and r.get("ok"):
                 bot.send(chat, "Bağlandı, %s. Tahmin girmediğin maçlarda, tahmin kapanışına %d saat kala sana buradan hatırlatma göndereceğim." % (r.get("nick", ""), REMIND_HOURS))
                 log("bağlandı: %s" % r.get("nick"))
             else:
-                bot.send(chat, "Bağlanamadı. Siteyi açıp adını yazdıktan sonra 'Telegram'dan hatırlat' bağlantısına tekrar tıkla: " + SITE_URL)
+                bot.send(chat, "Bağlanamadı: bağlantının süresi dolmuş ya da daha önce kullanılmış olabilir. Siteye giriş yapıp 'Telegram'dan hatırlat' bağlantısına tekrar tıkla: " + SITE_URL)
                 log("bağlama hatası: %s %s" % (s, r))
         else:
-            bot.send(chat, "Merhaba! Hatırlatma almak için siteyi aç, adını yaz ve 'Telegram'dan hatırlat' bağlantısına tıkla: " + SITE_URL)
+            bot.send(chat, "Merhaba! Hatırlatma almak için siteye giriş yap ve 'Telegram'dan hatırlat' bağlantısına tıkla: " + SITE_URL)
         save_state(st)
     save_state(st)
 
