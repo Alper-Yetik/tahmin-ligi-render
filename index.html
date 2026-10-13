@@ -229,6 +229,10 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 .rx b{font-family:var(--display);font-size:.95rem;font-variant-numeric:tabular-nums}
 button.rx{cursor:pointer}
 .rx.mine{border-color:var(--accent);background:var(--accent-soft)}
+.msg{transition:transform .35s ease,filter .35s ease}
+.msg.pressing{transform:scale(.96);filter:brightness(.92)}
+@keyframes rxpop{0%{transform:scale(.96)}55%{transform:scale(1.04)}100%{transform:scale(1)}}
+.msg.pop{animation:rxpop .28s ease-out}
 .rxadd{flex:none;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:0;font-size:.95rem;line-height:1;cursor:pointer;box-shadow:var(--shadow)}
 @media (hover:hover) and (pointer:fine){.rxadd{opacity:0;transition:opacity .12s}.mrow:hover .rxadd,.rxadd:focus-visible,.rxadd[aria-expanded="true"]{opacity:1}}
 @media (pointer:coarse){.rxadd{display:none}.msg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}}
@@ -1197,16 +1201,20 @@ button.rxrowp:hover{background:var(--surface2)}
     }catch(_){}
   }
   var lpTimer=0,lpX=0,lpY=0,lpAt=0;
-  function lpCancel(){if(lpTimer){clearTimeout(lpTimer);lpTimer=0}}
+  var lpPress=0,lpEl=null;
+  function lpUnpress(){if(lpPress){clearTimeout(lpPress);lpPress=0}if(lpEl){lpEl.classList.remove("pressing");lpEl=null}}
+  function lpCancel(){if(lpTimer){clearTimeout(lpTimer);lpTimer=0}lpUnpress()}
   document.addEventListener("touchstart",function(e){
     lpCancel();
     if(!auth||e.touches.length!==1)return;
     var msg=e.target.closest&&e.target.closest(".msg[data-mid]");
     if(!msg||e.target.closest("button,a,.rxpick,.rxgrid"))return;
     lpX=e.touches[0].clientX;lpY=e.touches[0].clientY;
+    lpPress=setTimeout(function(){lpPress=0;lpEl=msg;msg.classList.add("pressing")},150);
     lpTimer=setTimeout(function(){
-      lpTimer=0;lpAt=Date.now();
+      lpTimer=0;lpAt=Date.now();lpUnpress();
       var id=+msg.dataset.mid;rxOpen=id;rxFull=0;updateChatUI(false);
+      var nm=document.querySelector('.msg[data-mid="'+id+'"]');if(nm){nm.classList.add("pop");setTimeout(function(){nm.classList.remove("pop")},400)}
       haptic();
     },450);
   },{passive:true});
