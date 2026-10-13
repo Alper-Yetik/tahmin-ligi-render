@@ -1183,6 +1183,19 @@ button.rxrowp:hover{background:var(--surface2)}
 
   /* ---------- olaylar ---------- */
   /* Telefonda mesaja basılı tutunca tepki seçici açılır (WhatsApp gibi). */
+  /* Titreşim: Android'de navigator.vibrate; iPhone'da yok, bunun yerine gizli bir "switch" kutusuna dokunmak iOS'ta hafif titreşim verir (iOS 17.4+). */
+  var hapticLbl=null;
+  function haptic(){
+    try{
+      if(navigator.vibrate){navigator.vibrate(30);return}
+      if(!hapticLbl){
+        hapticLbl=document.createElement("label");hapticLbl.setAttribute("aria-hidden","true");
+        hapticLbl.style.cssText="position:fixed;left:-200px;top:0;opacity:0;pointer-events:none";
+        hapticLbl.innerHTML='<input type="checkbox" switch tabindex="-1">';document.body.appendChild(hapticLbl);
+      }
+      hapticLbl.click();
+    }catch(_){}
+  }
   var lpTimer=0,lpX=0,lpY=0,lpAt=0;
   function lpCancel(){if(lpTimer){clearTimeout(lpTimer);lpTimer=0}}
   document.addEventListener("touchstart",function(e){
@@ -1194,7 +1207,7 @@ button.rxrowp:hover{background:var(--surface2)}
     lpTimer=setTimeout(function(){
       lpTimer=0;lpAt=Date.now();
       var id=+msg.dataset.mid;rxOpen=id;rxFull=0;updateChatUI(false);
-      if(navigator.vibrate)try{navigator.vibrate(30)}catch(_){}
+      haptic();
     },450);
   },{passive:true});
   document.addEventListener("touchmove",function(e){
