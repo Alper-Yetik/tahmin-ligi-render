@@ -232,6 +232,12 @@ button.rx{cursor:pointer}
 .rxpick{display:flex;flex-wrap:wrap;gap:2px;margin-top:6px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:3px 8px;box-shadow:var(--shadow);width:max-content;max-width:100%}
 .rxpick button{background:none;border:0;font-size:1.3rem;padding:2px 5px;border-radius:8px;line-height:1;cursor:pointer}
 .rxpick button:hover{background:var(--surface2)}
+.rxpick button.rxmore{font-family:var(--display);font-size:1.2rem;width:28px;height:28px;padding:0;border-radius:50%;background:var(--surface2);align-self:center;margin-left:2px}
+.rxgrid{margin-top:6px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:6px 8px;box-shadow:var(--shadow);max-height:210px;overflow-y:auto;overscroll-behavior:contain;max-width:100%}
+.rxcat{font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,inherit);opacity:.7;margin:6px 2px 2px}
+.rxrow{display:flex;flex-wrap:wrap;gap:1px}
+.rxrow button{background:none;border:0;font-size:1.35rem;width:36px;height:34px;padding:0;border-radius:8px;line-height:1;cursor:pointer}
+.rxrow button:hover{background:var(--surface2)}
 .msg.mine .rx{background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.35);color:inherit}
 .msg.mine .rx.mine{background:rgba(255,255,255,.42);border-color:#fff}
 .msg.mine .rxadd{border-color:rgba(255,255,255,.55)}
@@ -754,29 +760,45 @@ button.rx{cursor:pointer}
 
   /* ---------- sohbet ---------- */
   /* Tepkiler (WhatsApp gibi): bir üye bir mesaja bir tepki bırakır, aynısına basınca geri alır. */
-  var RX={like:"👍",love:"❤️",laugh:"😂",wow:"😮",sad:"😢",fire:"🔥",ball:"⚽"};
-  var RX_ORDER=["like","love","laugh","wow","sad","fire","ball"];
-  var reactions=[], rxByMsg={}, rxOpen=0;
+  var RX_QUICK=["👍","❤️","😂","😮","😢","🔥","⚽"];
+  var RX_ALL=[
+    ["Yüzler","😀 😃 😄 😁 😆 😅 🤣 😂 🙂 🙃 😉 😊 😇 🥰 😍 🤩 😘 😗 😚 😙 😋 😛 😜 🤪 😝 🤑 🤗 🤭 🤫 🤔 🤐 🤨 😐 😑 😶 😏 😒 🙄 😬 🤥 😌 😔 😪 🤤 😴 😷 🤒 🤕 🤢 🤮 🤧 🥵 🥶 🥴 😵 🤯 🤠 🥳 😎 🤓 🧐 😕 😟 🙁 ☹️ 😮 😯 😲 😳 🥺 😦 😧 😨 😰 😥 😢 😭 😱 😖 😣 😞 😓 😩 😫 🥱 😤 😡 😠 🤬 😈 👿 💀 ☠️ 💩 🤡 👹 👺 👻 👽 👾 🤖"],
+    ["El","👍 👎 👌 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ ✋ 🤚 🖐️ 🖖 👋 🤝 👏 🙌 👐 🤲 🙏 ✍️ 💪 🦵 🦶 👀 👅 👄 🧠"],
+    ["Kalpler","❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💯 💢 💥 💫 💦 💨 💤"],
+    ["Spor","⚽ 🏀 🏈 ⚾ 🎾 🏐 🏉 🎱 🏓 🥅 🏆 🥇 🥈 🥉 🏅 🎖️ 🎯 🎮 🎲 🚩 🏁 📣 📢 🥁 🎺"],
+    ["Eğlence","🔥 ✨ ⭐ 🌟 🎉 🎊 🎈 🎁 👑 💎 🍀 🌈 ☀️ ⛅ ☔ ⚡ ❄️ 🌙 🍺 🍻 🥂 🍕 🍔 🍟 🌭 🍿 🍩 🍪 🎂 ☕ 🐐 🦁 🐯 🐶 🐱 🐵 🙈 🙉 🙊 🐔 🦅 🐍"],
+    ["Diğer","✅ ❌ ❓ ❗ ‼️ ⚠️ 🚫 💬 💭 🕐 ⏰ 📌 📈 📉 💰 💸 🤑 🧿 🤌 🫡 🫶 🥹 🫠 🫢"]
+  ];
+  var reactions=[], rxByMsg={}, rxOpen=0, rxFull=0;
   function rebuildRx(){rxByMsg={};reactions.forEach(function(r){(rxByMsg[r.message_id]||(rxByMsg[r.message_id]=[])).push(r)})}
+  function rxBtn(id,e){return '<button type="button" data-action="react" data-id="'+id+'" data-kind="'+esc(e)+'" aria-label="Tepki '+esc(e)+'">'+esc(e)+'</button>'}
   function rxHtml(m){
-    var list=rxByMsg[m.id]||[], groups={}, h="";
-    list.forEach(function(r){(groups[r.kind]||(groups[r.kind]=[])).push(r)});
-    RX_ORDER.forEach(function(k){
-      var g=groups[k];if(!g)return;
+    var list=rxByMsg[m.id]||[], groups={}, order=[], h="";
+    list.forEach(function(r){if(!groups[r.kind]){groups[r.kind]=[];order.push(r.kind)}groups[r.kind].push(r)});
+    order.sort(function(a,b){return groups[b].length-groups[a].length});
+    order.forEach(function(k){
+      var g=groups[k], e=esc(k);
       var names=g.map(function(r){return r.nick}).join(", ");
       var mineR=auth&&g.some(function(r){return r.player_id===auth.id});
       h+=auth?
-        '<button type="button" class="rx'+(mineR?' mine':'')+'" data-action="react" data-id="'+m.id+'" data-kind="'+k+'" title="'+esc(names)+'" aria-label="'+esc(RX[k]+' '+g.length+': '+names)+'">'+RX[k]+'<b>'+g.length+'</b></button>':
-        '<span class="rx" title="'+esc(names)+'">'+RX[k]+'<b>'+g.length+'</b></span>';
+        '<button type="button" class="rx'+(mineR?' mine':'')+'" data-action="react" data-id="'+m.id+'" data-kind="'+e+'" title="'+esc(names)+'" aria-label="'+esc(k+' '+g.length+': '+names)+'">'+e+'<b>'+g.length+'</b></button>':
+        '<span class="rx" title="'+esc(names)+'">'+e+'<b>'+g.length+'</b></span>';
     });
     if(auth)h+='<button type="button" class="rxadd" data-action="rxpick" data-id="'+m.id+'" aria-label="Tepki bırak" aria-expanded="'+(rxOpen===m.id)+'">☺</button>';
     if(!h)return "";
-    var pick=(auth&&rxOpen===m.id)?'<div class="rxpick">'+RX_ORDER.map(function(k){return '<button type="button" data-action="react" data-id="'+m.id+'" data-kind="'+k+'" aria-label="Tepki">'+RX[k]+'</button>'}).join("")+'</div>':"";
+    var pick="";
+    if(auth&&rxOpen===m.id){
+      pick='<div class="rxpick">'+RX_QUICK.map(function(e){return rxBtn(m.id,e)}).join("")+
+        '<button type="button" class="rxmore" data-action="rxmore" data-id="'+m.id+'" aria-label="Tüm emojiler" aria-expanded="'+(rxFull===m.id)+'">'+(rxFull===m.id?'−':'+')+'</button></div>';
+      if(rxFull===m.id)pick+='<div class="rxgrid">'+RX_ALL.map(function(c){
+        return '<div class="rxcat">'+esc(c[0])+'</div><div class="rxrow">'+c[1].split(" ").map(function(e){return rxBtn(m.id,e)}).join("")+'</div>';
+      }).join("")+'</div>';
+    }
     return '<div class="rxbar">'+h+'</div>'+pick;
   }
   async function reactChat(mid,kind){
     if(!auth)return;
-    rxOpen=0;
+    rxOpen=0;rxFull=0;
     var old=reactions.slice();
     var ex=reactions.find(function(r){return r.message_id===mid&&r.player_id===auth.id});
     reactions=reactions.filter(function(r){return !(r.message_id===mid&&r.player_id===auth.id)});
@@ -1131,7 +1153,8 @@ button.rx{cursor:pointer}
     else if(a==="clearImg")clearChatImg();
     else if(a==="zoom")openLightbox(t.getAttribute("src"));
     else if(a==="react")reactChat(+t.dataset.id,t.dataset.kind);
-    else if(a==="rxpick"){var pm=+t.dataset.id;rxOpen=rxOpen===pm?0:pm;updateChatUI(false)}
+    else if(a==="rxpick"){var pm=+t.dataset.id;rxOpen=rxOpen===pm?0:pm;rxFull=0;updateChatUI(false)}
+    else if(a==="rxmore"){var fm=+t.dataset.id;rxFull=rxFull===fm?0:fm;updateChatUI(false)}
     else if(a==="delChat")delChat(t.dataset.id);
     else if(a==="savePred")savePred(m);
     else if(a==="signout"){var tk=auth&&auth.token;auth=null;lsDel("tl_auth");chatFootKey="";el("pwbox").hidden=true;setMode("login");render();if(tk)rpc("member_logout",{p_token:tk}).catch(function(){})}
