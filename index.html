@@ -276,6 +276,12 @@ button.rxrowp:hover{background:var(--surface2)}
 @media (max-width:520px){body.chatlock{position:fixed;top:var(--lockTop,0);left:0;right:0;width:100%;overflow:hidden}}
 .chatpanel,.chathead,.chatfoot{overscroll-behavior:contain;touch-action:manipulation}
 .msg.gone{font-style:italic;opacity:.75}
+.unreadsep{display:flex;justify-content:center;padding:4px 0}
+.unreadsep span{background:var(--accent-soft);color:var(--ink);border:1px solid var(--accent);border-radius:999px;padding:3px 14px;font-size:.72rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+.chatdown{position:absolute;right:14px;bottom:12px;width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);box-shadow:var(--shadow-lg);display:grid;place-items:center;font-size:1.3rem;line-height:1;z-index:5;padding:0}
+.chatdown[hidden]{display:none}
+.chatdown .cdn{position:absolute;top:-8px;right:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-size:.72rem;font-weight:800;display:grid;place-items:center;box-shadow:0 0 0 2px var(--surface)}
+.chatdown .cdn[hidden]{display:none}
 button.pill{position:relative;font-family:inherit;color:inherit;cursor:pointer;text-align:left;transition:transform .35s ease,filter .35s ease}
 button.pill.pressing{transform:scale(.94);filter:brightness(.92)}
 button.pill.pop{animation:rxpop .28s ease-out}
@@ -429,6 +435,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
   </div>
   <div class="chatbody">
     <div id="chatlist" class="chatlist" aria-live="polite"></div>
+    <button type="button" class="chatdown" id="chatDown" data-action="chatDown" aria-label="En alta in" hidden>↓<span class="cdn" id="chatDownN" hidden></span></button>
   </div>
   <div id="chatfoot" class="chatfoot"></div>
 </section>
@@ -1136,7 +1143,21 @@ button.pill.pop{animation:rxpop .28s ease-out}
       p.style.top=(vv.offsetTop+8)+"px";p.style.bottom="auto";p.style.height=(vv.height-16)+"px";
     }else{p.style.top="";p.style.bottom="";p.style.height=""}
   }
+  /* Okunmamış ayracı: sohbet açılırken en son görülen mesajdan sonrakiler "okunmamış" sayılır, liste ilk okunmamışa kayar.
+     "En alta in" düğmesi: yukarıdayken görünür, üstünde altta kalan yeni mesaj sayısı yazar. */
+  var chatDivAfter=0, chatJump=false, lastBottomId=0;
+  function updateDownBtn(){
+    var b=el("chatDown"),box=el("chatlist");if(!b||!box)return;
+    var dist=box.scrollHeight-box.scrollTop-box.clientHeight;
+    var last=chat.length?chat[chat.length-1].id:0;
+    if(dist<80)lastBottomId=last;
+    var n=chat.filter(function(m){return m.id>lastBottomId&&!(auth&&m.player_id===auth.id)}).length;
+    b.hidden=!(chatOpen&&dist>160);
+    var c=el("chatDownN");if(c){c.hidden=!n;c.textContent=n>9?"9+":String(n)}
+  }
   function setChatOpen(open){
+    if(open&&!chatOpen){chatDivAfter=chatSeen;chatJump=true;lastBottomId=chatSeen}
+    if(!open){chatDivAfter=0;chatJump=false}
     chatOpen=!!open;
     lockPage(chatOpen);fitChat();
     el("chatPanel").hidden=!chatOpen;
@@ -1163,6 +1184,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
     });
   }
   function onChatScroll(){
+    updateDownBtn();
     if(Date.now()-chatProg<250)return; // koddan yapılan otomatik kaydırmada etiket çıkmasın
     chatScrolling=true;
     applyDayIdle(false);
@@ -1258,6 +1280,8 @@ button.pill.pop{animation:rxpop .28s ease-out}
     /* Her günün mesajları kendi grubunda durur. Gün etiketi grubunun içinde üste yapışır (sticky),
        sonraki güne gelince bir önceki günün etiketini yukarı iterek yerine geçer, WhatsApp gibi. */
     var html="", lastDay="";
+    var firstUnread=chatDivAfter>0?chat.find(function(x){return x.id>chatDivAfter&&!(auth&&x.player_id===auth.id)}):null;
+    var unreadN=firstUnread?chat.filter(function(x){return x.id>chatDivAfter&&!(auth&&x.player_id===auth.id)}).length:0;
     chat.forEach(function(m){
       var mine=auth&&m.player_id===auth.id;
       var ts=Date.parse(m.created_at), dk=dayKey(ts);
@@ -1266,6 +1290,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
         lastDay=dk;
         html+='<div class="daygrp"><div class="daysep"><span>'+esc(dayLabel(ts))+'</span></div>';
       }
+      if(firstUnread&&m.id===firstUnread.id)html+='<div class="unreadsep" id="unreadSep"><span>'+unreadN+' okunmamış mesaj</span></div>';
       if(m.deleted){
         html+='<div class="mrow'+(mine?' mine':'')+'"><div class="msg gone'+(mine?' mine':'')+'"><span class="who">'+esc(m.nick)+'</span>'+
           (isAdmin()?' <button class="link" data-action="delChat" data-id="'+m.id+'" aria-label="Mesajı sil">sil</button>':'')+
@@ -1289,7 +1314,14 @@ button.pill.pop{animation:rxpop .28s ease-out}
       var near=force||box.scrollHeight-box.scrollTop-box.clientHeight<80;
       var html=chatListHtml();
       if(box.dataset.sig!==html){box.dataset.sig=html;box.innerHTML=html;chatStickUntil=near?Date.now()+4000:0;if(near){chatProg=Date.now();box.scrollTop=box.scrollHeight}}
+      if(chatJump&&chat.length){
+        chatJump=false;chatProg=Date.now();
+        var usep=document.getElementById("unreadSep");
+        if(usep){box.scrollTop+=usep.getBoundingClientRect().top-box.getBoundingClientRect().top-44;chatStickUntil=0}
+        else box.scrollTop=box.scrollHeight;
+      }
       if(!chatScrolling)applyDayIdle(true);
+      updateDownBtn();
     }
     var unread=chat.filter(function(m){return m.id>chatSeen&&!(auth&&m.player_id===auth.id)}).length;
     var badge=el("chatBadge");
@@ -1597,6 +1629,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
     else if(a==="rxmore"){var fm=+t.dataset.id;rxFull=rxFull===fm?0:fm;updateChatUI(false)}
     else if(a==="reply")setReply(+t.dataset.id);
     else if(a==="clearReply"){if(editMsg)cancelEdit();replyTo=null;predQuote=null;updateReplyPrev()}
+    else if(a==="chatDown"){var cb=el("chatlist");if(cb){chatProg=Date.now();cb.scrollTo({top:cb.scrollHeight,behavior:"smooth"})}}
     else if(a==="predopen"){if(!matchMedia("(pointer:coarse)").matches)openPredSheet(t.dataset.m,t.dataset.u)}
     else if(a==="gotoMatch")gotoMatch(t.dataset.m);
     else if(a==="editMsg")startEdit(+t.dataset.id);
