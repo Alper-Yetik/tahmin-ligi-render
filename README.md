@@ -72,7 +72,7 @@ Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspb
 ### 1. Supabase
 
 1. supabase.com'da proje oluştur.
-2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `events.sql`, `standings.sql`, `chat.sql`, **`chat_images.sql`** (sohbete fotoğraf ekleme), sonra **`members.sql`** (eski şifresiz giriş fonksiyonlarını siler ve üyelik sistemini kurar), sonra **`telegram_link.sql`** (Telegram bağlantısını üyelik oturumuna bağlar), sonra **`chat_reactions.sql`** ve **`chat_reactions_any.sql`** (sohbet tepkileri, ikincisi her emojiye izin verir; sohbet fotoğrafları için `chat_images.sql` de çalıştırılmış olmalı).
+2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `events.sql`, `standings.sql`, `chat.sql`, **`chat_images.sql`** (sohbete fotoğraf ekleme), sonra **`members.sql`** (eski şifresiz giriş fonksiyonlarını siler ve üyelik sistemini kurar), sonra **`telegram_link.sql`** (Telegram bağlantısını üyelik oturumuna bağlar), sonra **`chat_reactions.sql`** ve **`chat_reactions_any.sql`** (sohbet tepkileri, ikincisi her emojiye izin verir; sohbet fotoğrafları için `chat_images.sql` de çalıştırılmış olmalı), en son **`chat_reply.sql`** (mesaja yanıt verme; siteyi yayınlamadan **önce** çalıştır).
 3. Yönetici şifresini belirle (`BURAYA_SIFRE` yerine kendi şifren):
 
 ```sql
@@ -124,6 +124,8 @@ python3 sync_fixtures.py --dry-run     # önce dene, hiçbir şey eklemez
 Sitedeki **Sohbet** sekmesinde oyuncular adlarıyla mesaj yazar (en fazla 300 karakter). Sayfa açıkken 4 saniyede bir yenilenir, başka sekmedeyken okunmamış mesaj sayısı sekmenin yanında görünür. Bir oyuncu 2 saniyede birden fazla, tüm sohbet dakikada 40'tan fazla mesaj yazamaz. Son 500 mesaj tutulur, eskileri otomatik silinir. Yönetici girişi yapınca her mesajın yanında "sil" bağlantısı çıkar.
 
 Mesajlar gün gün gruplanır: günlerin arasında "Bugün", "Dün", "9 Eki Cum" gibi (Türkiye saatine göre) ayraç durur, her mesajın yanında saati yazar. Sohbeti kaydırırken o anki günün etiketi üstte yapışık kalır, yeni güne gelince eski günün etiketini yukarı iterek yerine geçer. Kaydırmayı bırakınca (yaklaşık 1,3 saniye sonra) sadece tepeye yapışmış etiket kaybolur, mesajların arasındaki ayraçlar yerinde kalır (WhatsApp gibi).
+
+**Yanıt verme (WhatsApp gibi):** Giriş yapmış üye bir mesajı telefonda sağa kaydırarak, basılı tutunca çıkan menüdeki **↩** ile ya da bilgisayarda balonun yanındaki **↩** düğmesiyle yanıtlar. Yazı kutusunun üstünde yanıtlanan mesajın özeti çıkar (**×** ile iptal edilir). Gönderilen mesajda yanıtlanan mesaj alıntı olarak görünür, alıntıya basınca asıl mesaja gidilir ve kısa süre vurgulanır. Yanıtlanan mesaj silinirse alıntı kaybolur, yanıt kalır. Kurulum: `chat_reply.sql`.
 
 **Tepkiler (WhatsApp gibi):** Giriş yapmış üye bir mesajın altındaki **☺** düğmesiyle 👍 ❤️ 😂 😮 😢 🔥 ⚽ hızlı emojilerinden birini, ya da yanındaki **+** ile açılan listeden herhangi bir emojiyi bırakır. Bir üye bir mesaja en fazla bir tepki bırakır: aynı emojiye tekrar basınca tepki kalkar, başka emojiye basınca değişir. Mesajın altında emoji kutucukları ve sayıları görünür, kutucuğun üstüne gelince (ya da uzun basınca) kimlerin bıraktığı yazar. Misafirler tepkileri görür ama bırakamaz. Üye başına dakikada en fazla 30 tepki işlemi. Kurulum: `chat_reactions.sql`, ardından `chat_reactions_any.sql` (tepki olarak emojinin kendisi saklanır; harf, rakam ve HTML işaretleri reddedilir). Mesaj silinince tepkileri de silinir.
 

@@ -267,6 +267,17 @@ button.rxrowp:hover{background:var(--surface2)}
 .daysep span{background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 14px;font-size:.72rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;box-shadow:var(--shadow)}
 .msg .t{opacity:.65;font-size:.72rem;font-variant-numeric:tabular-nums}
 .msg.mine .link{color:inherit}
+.qt{display:block;width:100%;text-align:left;font:inherit;color:inherit;background:rgba(0,0,0,.07);border:0;border-left:3px solid var(--accent);border-radius:8px;padding:4px 8px;margin:4px 0 2px;cursor:pointer;min-width:0}
+.qt b{display:block;font-family:var(--display);font-size:.88rem;letter-spacing:.03em}
+.qt span{display:block;font-size:.82rem;opacity:.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msg.mine .qt{background:rgba(255,255,255,.25);border-left-color:#fff}
+@keyframes qflash{0%,40%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:var(--shadow)}}
+.msg.flash{animation:qflash 1.2s ease-out}
+.chatreply{display:flex;align-items:center;gap:8px;border-left:3px solid var(--accent);background:var(--field);border-radius:8px;padding:6px 8px;min-width:0}
+.chatreply[hidden]{display:none}
+.chatreply div{flex:1;min-width:0}
+.chatreply b{display:block;font-family:var(--display);font-size:.9rem;letter-spacing:.03em}
+.chatreply span{display:block;font-size:.82rem;opacity:.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chatfoot{padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;gap:6px}
 .chatform{display:flex;gap:8px;align-items:center}
 .chatform input{flex:1;min-width:0;background:var(--field);border:1.5px solid var(--line);border-radius:999px;padding:11px 16px}
@@ -792,6 +803,32 @@ button.rxrowp:hover{background:var(--surface2)}
   function rebuildRx(){rxByMsg={};reactions.forEach(function(r){(rxByMsg[r.message_id]||(rxByMsg[r.message_id]=[])).push(r)})}
   function rxBtn(id,e){return '<button type="button" data-action="react" data-id="'+id+'" data-kind="'+esc(e)+'" aria-label="Tepki '+esc(e)+'">'+esc(e)+'</button>'}
   function rxAddBtn(m){return auth?'<button type="button" class="rxadd" data-action="rxpick" data-id="'+m.id+'" aria-label="Tepki bırak" aria-expanded="'+(rxOpen===m.id)+'">☺</button>':""}
+  /* Yanıt: yanıtlanan mesajın özeti, balonun içinde alıntı ve yazı kutusunun üstünde önizleme olarak görünür. */
+  var replyTo=null;
+  function snipText(body,image){var s=(body||"").replace(/\s+/g," ").trim();return s||(image?"📷 Fotoğraf":"")}
+  function rpBtn(m){return auth?'<button type="button" class="rxadd" data-action="reply" data-id="'+m.id+'" aria-label="Yanıtla">↩</button>':""}
+  function qtHtml(m){
+    if(!m.reply_to||!m.reply_nick)return "";
+    return '<button type="button" class="qt" data-action="goto" data-id="'+m.reply_to+'" aria-label="Yanıtlanan mesaja git"><b>'+esc(m.reply_nick)+'</b><span>'+esc(snipText(m.reply_body,m.reply_image))+'</span></button>';
+  }
+  function updateReplyPrev(){
+    var p=el("chatReply");if(!p)return;
+    if(!replyTo){p.hidden=true;p.innerHTML="";return}
+    p.hidden=false;
+    p.innerHTML='<div><b>'+esc(replyTo.nick)+'</b><span>'+esc(replyTo.text)+'</span></div><button class="link" type="button" data-action="clearReply" aria-label="Yanıtı iptal et">&times;</button>';
+  }
+  function setReply(id){
+    var m=chat.find(function(x){return x.id===id});if(!m||!auth)return;
+    replyTo={id:m.id,nick:m.nick,text:snipText(m.body,m.image)};
+    rxOpen=0;rxFull=0;updateChatUI(false);updateReplyPrev();
+    var inp=el("chatInput");if(inp)inp.focus();
+  }
+  function gotoMsg(id){
+    var n=document.querySelector('.msg[data-mid="'+id+'"]');if(!n)return;
+    n.scrollIntoView({block:"center",behavior:"smooth"});
+    n.classList.remove("flash");void n.offsetWidth;n.classList.add("flash");
+    setTimeout(function(){n.classList.remove("flash")},1300);
+  }
   function rxHtml(m){
     var list=rxByMsg[m.id]||[], groups={}, order=[], h="";
     list.forEach(function(r){if(!groups[r.kind]){groups[r.kind]=[];order.push(r.kind)}groups[r.kind].push(r)});
@@ -806,6 +843,7 @@ button.rxrowp:hover{background:var(--surface2)}
     var pick="";
     if(auth&&rxOpen===m.id){
       pick='<div class="rxpick">'+RX_QUICK.map(function(e){return rxBtn(m.id,e)}).join("")+
+        '<button type="button" class="rxmore" data-action="reply" data-id="'+m.id+'" aria-label="Yanıtla">↩</button>'+
         '<button type="button" class="rxmore" data-action="rxmore" data-id="'+m.id+'" aria-label="Tüm emojiler" aria-expanded="'+(rxFull===m.id)+'">'+(rxFull===m.id?'−':'+')+'</button></div>';
       if(rxFull===m.id)pick+='<div class="rxgrid">'+RX_ALL.map(function(c){
         return '<div class="rxcat">'+esc(c[0])+'</div><div class="rxrow">'+c[1].split(" ").map(function(e){return rxBtn(m.id,e)}).join("")+'</div>';
@@ -869,9 +907,9 @@ button.rxrowp:hover{background:var(--surface2)}
     if(key===chatFootKey)return;
     chatFootKey=key;
     foot.innerHTML=auth?
-      '<div class="chatprev" id="chatPrev" hidden></div><div class="chatform"><button class="chatattach" type="button" data-action="pickImg" aria-label="Galeriden fotoğraf ekle">'+IMG_SVG+'</button><button class="chatattach chatcam" type="button" data-action="pickCam" aria-label="Fotoğraf çek">'+CAM_SVG+'</button><input type="file" id="chatFile" accept="image/*" hidden><input type="file" id="chatCam" accept="image/*" capture="environment" hidden><input id="chatInput" maxlength="300" autocomplete="off" placeholder="Mesaj yaz…" value="'+esc(chatDraft)+'" aria-label="Mesaj"><button class="chatsend" id="chatSend" type="button" data-action="sendChat" aria-label="Gönder">'+SEND_SVG+'</button></div><span class="state warn" id="chatErr">'+esc(chatErr)+'</span>':
+      '<div class="chatreply" id="chatReply" hidden></div><div class="chatprev" id="chatPrev" hidden></div><div class="chatform"><button class="chatattach" type="button" data-action="pickImg" aria-label="Galeriden fotoğraf ekle">'+IMG_SVG+'</button><button class="chatattach chatcam" type="button" data-action="pickCam" aria-label="Fotoğraf çek">'+CAM_SVG+'</button><input type="file" id="chatFile" accept="image/*" hidden><input type="file" id="chatCam" accept="image/*" capture="environment" hidden><input id="chatInput" maxlength="300" autocomplete="off" placeholder="Mesaj yaz…" value="'+esc(chatDraft)+'" aria-label="Mesaj"><button class="chatsend" id="chatSend" type="button" data-action="sendChat" aria-label="Gönder">'+SEND_SVG+'</button></div><span class="state warn" id="chatErr">'+esc(chatErr)+'</span>':
       '<span class="state">Mesaj yazmak için önce sayfadan giriş yap.</span>';
-    updateChatPrev();
+    updateChatPrev();updateReplyPrev();
   }
   function setChatOpen(open){
     chatOpen=!!open;
@@ -1001,9 +1039,10 @@ button.rxrowp:hover{background:var(--surface2)}
         lastDay=dk;
         html+='<div class="daygrp"><div class="daysep"><span>'+esc(dayLabel(ts))+'</span></div>';
       }
-      html+='<div class="mrow'+(mine?' mine':'')+'">'+(mine?rxAddBtn(m):'')+'<div class="msg'+(mine?' mine':'')+'" data-mid="'+m.id+'"><span class="who">'+esc(m.nick)+'</span> <span class="t">'+fmtTime(ts)+'</span>'+
+      html+='<div class="mrow'+(mine?' mine':'')+'">'+(mine?rpBtn(m)+rxAddBtn(m):'')+'<div class="msg'+(mine?' mine':'')+'" data-mid="'+m.id+'"><span class="who">'+esc(m.nick)+'</span> <span class="t">'+fmtTime(ts)+'</span>'+
         (isAdmin()?' <button class="link" data-action="delChat" data-id="'+m.id+'" aria-label="Mesajı sil">sil</button>':'')+
-        (m.body?'<div>'+esc(m.body)+'</div>':'')+(m.image?'<img class="chatimg" loading="lazy" data-action="zoom" alt="Gönderilen fotoğraf" src="'+esc(BASE+"/storage/v1/object/public/chat-images/"+m.image)+'">':'')+rxHtml(m)+'</div>'+(mine?'':rxAddBtn(m))+'</div>';
+        qtHtml(m)+
+        (m.body?'<div>'+esc(m.body)+'</div>':'')+(m.image?'<img class="chatimg" loading="lazy" data-action="zoom" alt="Gönderilen fotoğraf" src="'+esc(BASE+"/storage/v1/object/public/chat-images/"+m.image)+'">':'')+rxHtml(m)+'</div>'+(mine?'':rxAddBtn(m)+rpBtn(m))+'</div>';
     });
     return html+(lastDay?'</div>':'');
   }
@@ -1042,9 +1081,9 @@ button.rxrowp:hover{background:var(--surface2)}
       var r;
       if(chatPend){
         var up=await uploadChatImg(chatPend.blob);
-        r=up.ok?await rpc("send_chat_image",{p_token:auth.token,p_body:text,p_image:up.name}):up;
-      }else r=await rpc("send_chat",{p_token:auth.token,p_body:text});
-      if(r.ok){inp.value="";chatDraft="";chatErr="";clearChatImg()}
+        r=up.ok?await rpc("send_chat_image",{p_token:auth.token,p_body:text,p_image:up.name,p_reply:replyTo?replyTo.id:null}):up;
+      }else r=await rpc("send_chat",{p_token:auth.token,p_body:text,p_reply:replyTo?replyTo.id:null});
+      if(r.ok){inp.value="";chatDraft="";chatErr="";clearChatImg();replyTo=null;updateReplyPrev()}
       else{
         chatErr=ERR[r.error]||"Gönderilemedi.";
         if(r.error==="not_logged_in"){auth=null;lsDel("tl_auth");chatFootKey="";render()}
@@ -1225,6 +1264,30 @@ button.rxrowp:hover{background:var(--surface2)}
   document.addEventListener("contextmenu",function(e){
     if(auth&&e.target.closest&&e.target.closest(".msg[data-mid]")&&matchMedia("(pointer:coarse)").matches)e.preventDefault();
   });
+  /* Telefonda mesajı sağa kaydırınca yanıtlanır (WhatsApp gibi). */
+  var swEl=null,swX=0,swY=0,swDx=0,swOn=false;
+  function swReset(){if(swEl){swEl.style.transition="";swEl.style.transform=""}swEl=null;swOn=false;swDx=0}
+  document.addEventListener("touchstart",function(e){
+    swReset();
+    if(!auth||e.touches.length!==1)return;
+    var msg=e.target.closest&&e.target.closest(".msg[data-mid]");
+    if(!msg||e.target.closest("button,a,.rxpick,.rxgrid"))return;
+    swEl=msg;swX=e.touches[0].clientX;swY=e.touches[0].clientY;
+  },{passive:true});
+  document.addEventListener("touchmove",function(e){
+    if(!swEl||!e.touches[0])return;
+    var dx=e.touches[0].clientX-swX, dy=e.touches[0].clientY-swY;
+    if(!swOn){
+      if(Math.abs(dy)>12&&Math.abs(dy)>Math.abs(dx)){swReset();return}
+      if(dx>14&&dx>Math.abs(dy)*1.5){swOn=true;swEl.style.transition="none"}
+    }
+    if(swOn){swDx=Math.max(0,Math.min(dx,80));swEl.style.transform="translateX("+swDx+"px)"}
+  },{passive:true});
+  document.addEventListener("touchend",function(){
+    if(swEl&&swOn&&swDx>=56){var id=+swEl.dataset.mid;swReset();setReply(id);haptic()}
+    else swReset();
+  },{passive:true});
+  document.addEventListener("touchcancel",swReset,{passive:true});
   /* Seçici açıkken dışına dokununca kapanır. */
   document.addEventListener("click",function(e){
     if(!rxOpen||Date.now()-lpAt<700)return;
@@ -1249,6 +1312,9 @@ button.rxrowp:hover{background:var(--surface2)}
     else if(a==="react")reactChat(+t.dataset.id,t.dataset.kind);
     else if(a==="rxpick"){var pm=+t.dataset.id;rxOpen=rxOpen===pm?0:pm;rxFull=0;updateChatUI(false)}
     else if(a==="rxmore"){var fm=+t.dataset.id;rxFull=rxFull===fm?0:fm;updateChatUI(false)}
+    else if(a==="reply")setReply(+t.dataset.id);
+    else if(a==="clearReply"){replyTo=null;updateReplyPrev()}
+    else if(a==="goto")gotoMsg(+t.dataset.id);
     else if(a==="delChat")delChat(t.dataset.id);
     else if(a==="savePred")savePred(m);
     else if(a==="signout"){var tk=auth&&auth.token;auth=null;lsDel("tl_auth");chatFootKey="";el("pwbox").hidden=true;setMode("login");render();if(tk)rpc("member_logout",{p_token:tk}).catch(function(){})}
