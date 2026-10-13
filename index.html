@@ -222,6 +222,19 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 .msg{align-self:flex-start;max-width:86%;background:var(--surface);border:1px solid var(--line);border-radius:16px 16px 16px 4px;padding:8px 12px;overflow-wrap:anywhere;min-width:0;box-shadow:var(--shadow)}
 .msg.mine{align-self:flex-end;border-radius:16px 16px 4px 16px;border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--accent-ink)}
 .msg .who{font-family:var(--display);font-weight:700;font-size:1.02rem;letter-spacing:.03em}
+.rxbar{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:6px}
+.rx{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);border-radius:999px;padding:2px 9px;font-size:.9rem;line-height:1.4}
+.rx b{font-family:var(--display);font-size:.95rem;font-variant-numeric:tabular-nums}
+button.rx{cursor:pointer}
+.rx.mine{border-color:var(--accent);background:var(--accent-soft)}
+.rxadd{background:none;border:1px dashed var(--line);border-radius:999px;width:26px;height:24px;padding:0;color:inherit;font-size:.85rem;line-height:1;opacity:.5;cursor:pointer}
+.rxadd:hover,.rxadd[aria-expanded="true"],.rxadd:focus-visible{opacity:1}
+.rxpick{display:flex;flex-wrap:wrap;gap:2px;margin-top:6px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:3px 8px;box-shadow:var(--shadow);width:max-content;max-width:100%}
+.rxpick button{background:none;border:0;font-size:1.3rem;padding:2px 5px;border-radius:8px;line-height:1;cursor:pointer}
+.rxpick button:hover{background:var(--surface2)}
+.msg.mine .rx{background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.35);color:inherit}
+.msg.mine .rx.mine{background:rgba(255,255,255,.42);border-color:#fff}
+.msg.mine .rxadd{border-color:rgba(255,255,255,.55)}
 .daygrp{display:flex;flex-direction:column;gap:10px;min-width:0}
 .daysep{position:sticky;top:0;z-index:3;display:flex;justify-content:center;padding:10px 0 4px;pointer-events:none}
 .daysep.idle span{opacity:0}
@@ -740,6 +753,44 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
   }
 
   /* ---------- sohbet ---------- */
+  /* Tepkiler (WhatsApp gibi): bir üye bir mesaja bir tepki bırakır, aynısına basınca geri alır. */
+  var RX={like:"👍",love:"❤️",laugh:"😂",wow:"😮",sad:"😢",fire:"🔥",ball:"⚽"};
+  var RX_ORDER=["like","love","laugh","wow","sad","fire","ball"];
+  var reactions=[], rxByMsg={}, rxOpen=0;
+  function rebuildRx(){rxByMsg={};reactions.forEach(function(r){(rxByMsg[r.message_id]||(rxByMsg[r.message_id]=[])).push(r)})}
+  function rxHtml(m){
+    var list=rxByMsg[m.id]||[], groups={}, h="";
+    list.forEach(function(r){(groups[r.kind]||(groups[r.kind]=[])).push(r)});
+    RX_ORDER.forEach(function(k){
+      var g=groups[k];if(!g)return;
+      var names=g.map(function(r){return r.nick}).join(", ");
+      var mineR=auth&&g.some(function(r){return r.player_id===auth.id});
+      h+=auth?
+        '<button type="button" class="rx'+(mineR?' mine':'')+'" data-action="react" data-id="'+m.id+'" data-kind="'+k+'" title="'+esc(names)+'" aria-label="'+esc(RX[k]+' '+g.length+': '+names)+'">'+RX[k]+'<b>'+g.length+'</b></button>':
+        '<span class="rx" title="'+esc(names)+'">'+RX[k]+'<b>'+g.length+'</b></span>';
+    });
+    if(auth)h+='<button type="button" class="rxadd" data-action="rxpick" data-id="'+m.id+'" aria-label="Tepki bırak" aria-expanded="'+(rxOpen===m.id)+'">☺</button>';
+    if(!h)return "";
+    var pick=(auth&&rxOpen===m.id)?'<div class="rxpick">'+RX_ORDER.map(function(k){return '<button type="button" data-action="react" data-id="'+m.id+'" data-kind="'+k+'" aria-label="Tepki">'+RX[k]+'</button>'}).join("")+'</div>':"";
+    return '<div class="rxbar">'+h+'</div>'+pick;
+  }
+  async function reactChat(mid,kind){
+    if(!auth)return;
+    rxOpen=0;
+    var old=reactions.slice();
+    var ex=reactions.find(function(r){return r.message_id===mid&&r.player_id===auth.id});
+    reactions=reactions.filter(function(r){return !(r.message_id===mid&&r.player_id===auth.id)});
+    if(!ex||ex.kind!==kind)reactions.push({message_id:mid,player_id:auth.id,nick:auth.nick,kind:kind});
+    rebuildRx();updateChatUI(false);
+    try{
+      var r=await rpc("react_chat",{p_token:auth.token,p_message:mid,p_kind:kind});
+      if(!r.ok){
+        reactions=old;rebuildRx();updateChatUI(false);
+        if(r.error==="not_logged_in"){auth=null;lsDel("tl_auth");chatFootKey="";render()}
+      }
+    }catch(e){reactions=old;rebuildRx();updateChatUI(false)}
+    await loadChat();
+  }
   var chat=[], chatDraft="", chatSeen=+(lsGet("tl_chat_seen")||0), chatBusy=false, chatErr="", chatTick=0, chatOpen=false, chatFootKey="", chatPend=null, chatStickUntil=0;
   var SEND_SVG='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4l17.4-8.1a.4.4 0 0 0 0-.7L3.4 3.6a.4.4 0 0 0-.56.5l2.3 6.6 8.6 1.3-8.6 1.3-2.3 6.6a.4.4 0 0 0 .56.5z"/></svg>';
   /* Mesaj yazma alanı: giriş durumu değişince yeniden çizilir, yoksa yazı kutusuna dokunmaz. */
@@ -883,7 +934,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
       }
       html+='<div class="msg'+(mine?' mine':'')+'"><span class="who">'+esc(m.nick)+'</span> <span class="t">'+fmtTime(ts)+'</span>'+
         (isAdmin()?' <button class="link" data-action="delChat" data-id="'+m.id+'" aria-label="Mesajı sil">sil</button>':'')+
-        (m.body?'<div>'+esc(m.body)+'</div>':'')+(m.image?'<img class="chatimg" loading="lazy" data-action="zoom" alt="Gönderilen fotoğraf" src="'+esc(BASE+"/storage/v1/object/public/chat-images/"+m.image)+'">':'')+'</div>';
+        (m.body?'<div>'+esc(m.body)+'</div>':'')+(m.image?'<img class="chatimg" loading="lazy" data-action="zoom" alt="Gönderilen fotoğraf" src="'+esc(BASE+"/storage/v1/object/public/chat-images/"+m.image)+'">':'')+rxHtml(m)+'</div>';
     });
     return html+(lastDay?'</div>':'');
   }
@@ -906,6 +957,11 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     try{
       var r=await sb("/rest/v1/chat_public?select=*&order=id.desc&limit=100");
       r.reverse();chat=r;
+      /* Tepkiler: sadece ekrandaki mesajlar için (en eski yüklenen mesajdan itibaren). Okunamazsa sohbet yine çalışır. */
+      if(chat.length){
+        try{reactions=await sb("/rest/v1/chat_reactions_public?select=*&message_id=gte."+chat[0].id)}catch(e){}
+        rebuildRx();
+      }
     }catch(e){return}
     updateChatUI(false);
   }
@@ -1074,6 +1130,8 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
     else if(a==="pickCam"){if(window.matchMedia&&matchMedia("(pointer:coarse)").matches){var fc=el("chatCam");if(fc)fc.click()}else openWebcam()}
     else if(a==="clearImg")clearChatImg();
     else if(a==="zoom")openLightbox(t.getAttribute("src"));
+    else if(a==="react")reactChat(+t.dataset.id,t.dataset.kind);
+    else if(a==="rxpick"){var pm=+t.dataset.id;rxOpen=rxOpen===pm?0:pm;updateChatUI(false)}
     else if(a==="delChat")delChat(t.dataset.id);
     else if(a==="savePred")savePred(m);
     else if(a==="signout"){var tk=auth&&auth.token;auth=null;lsDel("tl_auth");chatFootKey="";el("pwbox").hidden=true;setMode("login");render();if(tk)rpc("member_logout",{p_token:tk}).catch(function(){})}
