@@ -275,6 +275,9 @@ button.rxrowp:hover{background:var(--surface2)}
 .msg.flash{animation:qflash 1.2s ease-out}
 @media (max-width:520px){body.chatlock{position:fixed;top:var(--lockTop,0);left:0;right:0;width:100%;overflow:hidden}}
 .chatpanel,.chathead,.chatfoot{overscroll-behavior:contain;touch-action:manipulation}
+.tick{background:none;border:0;padding:0 2px;font:inherit;font-size:.78rem;font-weight:800;letter-spacing:-.18em;color:inherit;opacity:.6;cursor:pointer}
+.tick.some{opacity:.95}
+.tick.all{color:#1565c0;opacity:1;text-shadow:0 0 1px rgba(255,255,255,.6)}
 .chattyping{min-height:1.2em;font-size:.78rem;font-style:italic;color:var(--muted)}
 .chatreply{display:flex;align-items:center;gap:8px;border-left:3px solid var(--accent);background:var(--field);border-radius:8px;padding:6px 8px;min-width:0}
 .chatreply[hidden]{display:none}
@@ -822,6 +825,35 @@ button.rxrowp:hover{background:var(--surface2)}
   }
   /* "Yazıyor…": yazarken sinyal gönderilir, sohbet açıkken 2 saniyede bir kimlerin yazdığına bakılır. */
   var typers=[], typingSent=0;
+  /* Okundu bilgisi: ✓ gönderildi, ✓✓ en az biri okudu, mavi ✓✓ herkes okudu. Tike basınca kimlerin okuduğu açılır. */
+  var reads=[], readSent=0;
+  function readState(m){
+    var others=reads.filter(function(r){return !(auth&&r.player_id===auth.id)});
+    var got=others.filter(function(r){return r.last_id>=m.id});
+    return {others:others,got:got,cls:!got.length?"":(got.length===others.length?"all":"some")};
+  }
+  function tickHtml(m){
+    var s=readState(m);
+    return ' <button type="button" class="tick '+s.cls+'" data-action="readers" data-id="'+m.id+'" aria-label="'+(s.cls?"Okundu, kimler okudu":"Gönderildi")+'">'+(s.cls?"✓✓":"✓")+'</button>';
+  }
+  function openReadSheet(mid){
+    var m=chat.find(function(x){return x.id===mid});if(!m)return;
+    var s=readState(m), d=document.createElement("div");d.className="rxsheetbg";
+    function close(){d.remove();document.removeEventListener("keydown",k,true)}
+    function k(e){if(e.key==="Escape"){e.stopPropagation();close()}}
+    var seen=s.got.map(function(r){return r.nick}).sort(), not=s.others.filter(function(r){return r.last_id<mid}).map(function(r){return r.nick}).sort();
+    function rows(a){return a.map(function(n){return '<div class="rxrowp"><span class="rxn">'+esc(n)+'</span></div>'}).join("")}
+    d.innerHTML='<div class="rxsheet" role="dialog" aria-label="Mesaj bilgisi"><div class="rxtabs"><button type="button" class="on">Okuyanlar <b>'+seen.length+'</b></button></div><div class="rxlist">'+
+      (seen.length?rows(seen):'<div class="rxrowp"><span class="rxn"><small>Henüz kimse okumadı</small></span></div>')+
+      (not.length?'<div class="rxcat" style="margin:10px 18px 2px">Okumayanlar</div>'+rows(not):'')+'</div></div>';
+    d.addEventListener("click",function(e){if(!e.target.closest(".rxsheet"))close()});
+    document.addEventListener("keydown",k,true);document.body.appendChild(d);
+  }
+  function markRead(last){
+    if(!auth||!chatOpen||document.hidden||last<=readSent)return;
+    var prev=readSent;readSent=last;
+    rpc("chat_mark_read",{p_token:auth.token,p_id:last}).then(function(r){if(!r||!r.ok)readSent=prev}).catch(function(){readSent=prev});
+  }
   function updateTypingUI(){
     var t=el("chatTyping");if(!t)return;
     var n=typers.length;
@@ -1078,7 +1110,7 @@ button.rxrowp:hover{background:var(--surface2)}
         lastDay=dk;
         html+='<div class="daygrp"><div class="daysep"><span>'+esc(dayLabel(ts))+'</span></div>';
       }
-      html+='<div class="mrow'+(mine?' mine':'')+'">'+(mine?rpBtn(m)+rxAddBtn(m):'')+'<div class="msg'+(mine?' mine':'')+'" data-mid="'+m.id+'"><span class="who">'+esc(m.nick)+'</span> <span class="t">'+fmtTime(ts)+'</span>'+
+      html+='<div class="mrow'+(mine?' mine':'')+'">'+(mine?rpBtn(m)+rxAddBtn(m):'')+'<div class="msg'+(mine?' mine':'')+'" data-mid="'+m.id+'"><span class="who">'+esc(m.nick)+'</span> <span class="t">'+fmtTime(ts)+'</span>'+(mine?tickHtml(m):'')+
         (isAdmin()?' <button class="link" data-action="delChat" data-id="'+m.id+'" aria-label="Mesajı sil">sil</button>':'')+
         qtHtml(m)+
         (m.body?'<div>'+esc(m.body)+'</div>':'')+(m.image?'<img class="chatimg" loading="lazy" data-action="zoom" alt="Gönderilen fotoğraf" src="'+esc(BASE+"/storage/v1/object/public/chat-images/"+m.image)+'">':'')+rxHtml(m)+'</div>'+(mine?'':rxAddBtn(m)+rpBtn(m))+'</div>';
@@ -1088,6 +1120,7 @@ button.rxrowp:hover{background:var(--surface2)}
   function updateChatUI(force){
     var last=chat.length?chat[chat.length-1].id:0;
     if(chatOpen&&last>chatSeen){chatSeen=last;lsSet("tl_chat_seen",last)}
+    if(chatOpen)markRead(last);
     var box=el("chatlist");
     if(chatOpen&&box){
       var near=force||box.scrollHeight-box.scrollTop-box.clientHeight<80;
@@ -1109,6 +1142,7 @@ button.rxrowp:hover{background:var(--surface2)}
         try{reactions=await sb("/rest/v1/chat_reactions_public?select=*&message_id=gte."+chat[0].id)}catch(e){}
         rebuildRx();
       }
+      try{reads=await sb("/rest/v1/chat_reads_public?select=player_id,nick,last_id")}catch(e){}
     }catch(e){return}
     updateChatUI(false);
   }
@@ -1354,6 +1388,7 @@ button.rxrowp:hover{background:var(--surface2)}
     else if(a==="reply")setReply(+t.dataset.id);
     else if(a==="clearReply"){replyTo=null;updateReplyPrev()}
     else if(a==="goto")gotoMsg(+t.dataset.id);
+    else if(a==="readers")openReadSheet(+t.dataset.id);
     else if(a==="delChat")delChat(t.dataset.id);
     else if(a==="savePred")savePred(m);
     else if(a==="signout"){var tk=auth&&auth.token;auth=null;lsDel("tl_auth");chatFootKey="";el("pwbox").hidden=true;setMode("login");render();if(tk)rpc("member_logout",{p_token:tk}).catch(function(){})}
