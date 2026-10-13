@@ -280,6 +280,12 @@ button.rxrowp:hover{background:var(--surface2)}
 .chatpanel,.chathead,.chatfoot{overscroll-behavior:contain;touch-action:manipulation}
 .msg.gone{font-style:italic;opacity:.75}
 .chatgifbtn{font-size:.68rem;font-weight:800;letter-spacing:.02em}
+.chatemojibtn{font-size:1.1rem;line-height:1}
+@media (pointer:coarse){.chatemojibtn{display:none}}
+.emojiti{flex:1;font-family:var(--display);font-size:1.1rem;letter-spacing:.05em;text-transform:uppercase}
+.emojigrid{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 12px 10px}
+.emojigrid .rxrow button{background:none;border:0;font-size:1.4rem;width:38px;height:36px;padding:0;border-radius:8px;line-height:1;cursor:pointer}
+.emojigrid .rxrow button:hover{background:var(--surface2)}
 .gifpanel{position:absolute;left:0;right:0;bottom:0;height:64%;display:flex;flex-direction:column;background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -8px 24px rgba(0,0,0,.18);z-index:6}
 .gifbar{display:flex;gap:8px;align-items:center;padding:10px 12px}
 .gifbar input{flex:1;min-width:0;background:var(--field);border:1.5px solid var(--line);border-radius:999px;padding:9px 14px}
@@ -1144,7 +1150,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
     if(key===chatFootKey)return;
     chatFootKey=key;
     foot.innerHTML=auth?
-      '<div class="chattyping" id="chatTyping" aria-live="polite"></div><div class="chatreply" id="chatReply" hidden></div><div class="chatprev" id="chatPrev" hidden></div><div class="chatform"><button class="chatattach" type="button" data-action="pickImg" aria-label="Galeriden fotoğraf ekle">'+IMG_SVG+'</button><button class="chatattach chatcam" type="button" data-action="pickCam" aria-label="Fotoğraf çek">'+CAM_SVG+'</button><button class="chatattach chatgifbtn" type="button" data-action="gifOpen" aria-label="GIF ara">GIF</button><input type="file" id="chatFile" accept="image/*" hidden><input type="file" id="chatCam" accept="image/*" capture="environment" hidden><input id="chatInput" maxlength="300" autocomplete="off" placeholder="Mesaj yaz…" value="'+esc(chatDraft)+'" aria-label="Mesaj"><button class="chatsend" id="chatSend" type="button" data-action="sendChat" aria-label="Gönder">'+SEND_SVG+'</button></div><span class="state warn" id="chatErr">'+esc(chatErr)+'</span>':
+      '<div class="chattyping" id="chatTyping" aria-live="polite"></div><div class="chatreply" id="chatReply" hidden></div><div class="chatprev" id="chatPrev" hidden></div><div class="chatform"><button class="chatattach" type="button" data-action="pickImg" aria-label="Galeriden fotoğraf ekle">'+IMG_SVG+'</button><button class="chatattach chatcam" type="button" data-action="pickCam" aria-label="Fotoğraf çek">'+CAM_SVG+'</button><button class="chatattach chatgifbtn" type="button" data-action="gifOpen" aria-label="GIF ara">GIF</button><button class="chatattach chatemojibtn" type="button" data-action="emojiOpen" aria-label="Emoji ekle">🙂</button><input type="file" id="chatFile" accept="image/*" hidden><input type="file" id="chatCam" accept="image/*" capture="environment" hidden><input id="chatInput" maxlength="300" autocomplete="off" placeholder="Mesaj yaz…" value="'+esc(chatDraft)+'" aria-label="Mesaj"><button class="chatsend" id="chatSend" type="button" data-action="sendChat" aria-label="Gönder">'+SEND_SVG+'</button></div><span class="state warn" id="chatErr">'+esc(chatErr)+'</span>':
       '<div class="chattyping" id="chatTyping" aria-live="polite"></div><span class="state">Mesaj yazmak için önce sayfadan giriş yap.</span>';
     updateChatPrev();updateReplyPrev();updateTypingUI();
   }
@@ -1176,7 +1182,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
   }
   function setChatOpen(open){
     if(open&&!chatOpen){chatDivAfter=chatSeen;chatJump=true;lastBottomId=chatSeen}
-    if(!open){chatDivAfter=0;chatJump=false;closeGifPanel()}
+    if(!open){chatDivAfter=0;chatJump=false;closeGifPanel();closeEmojiPanel()}
     chatOpen=!!open;
     lockPage(chatOpen);fitChat();
     el("chatPanel").hidden=!chatOpen;
@@ -1299,6 +1305,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
   }
   function openGifPanel(){
     if(!auth||gifPanel)return;
+    closeEmojiPanel();
     var body=el("chatBody"),er=el("chatErr");if(!body)return;
     if(!GIPHY){chatErr="GIF araması kurulmamış.";if(er)er.textContent=chatErr;return}
     gifPanel=document.createElement("div");gifPanel.className="gifpanel";
@@ -1334,6 +1341,38 @@ button.pill.pop{animation:rxpop .28s ease-out}
     chatBusy=false;
     var e2=el("chatErr");if(e2)e2.textContent=chatErr;
     await loadChat();updateChatUI(true);
+  }
+  /* Emoji seçici (bilgisayar): emojiye basınca yazı kutusunda imlecin olduğu yere eklenir, panel açık kalır, birden fazla seçilebilir. */
+  var emojiPanel=null;
+  function emojiKey(e){if(e.key==="Escape"){e.stopPropagation();closeEmojiPanel()}}
+  function closeEmojiPanel(){
+    if(emojiPanel){emojiPanel.remove();emojiPanel=null}
+    document.removeEventListener("keydown",emojiKey,true);
+  }
+  function insertEmoji(e){
+    var inp=el("chatInput");if(!inp)return;
+    if(inp.value.length+e.length>300)return;
+    var s=inp.selectionStart==null?inp.value.length:inp.selectionStart, t=inp.selectionEnd==null?s:inp.selectionEnd;
+    inp.setRangeText(e,s,t,"end");
+    inp.dispatchEvent(new Event("input",{bubbles:true}));
+    inp.focus({preventScroll:true});
+  }
+  function openEmojiPanel(){
+    if(!auth)return;
+    if(emojiPanel){closeEmojiPanel();return}
+    var body=el("chatBody");if(!body)return;
+    closeGifPanel();
+    emojiPanel=document.createElement("div");emojiPanel.className="gifpanel emojipanel";
+    emojiPanel.innerHTML='<div class="gifbar"><b class="emojiti">Emoji</b><button type="button" class="gifx" data-emojiclose="1" aria-label="Kapat">&times;</button></div><div class="emojigrid">'+
+      RX_ALL.map(function(c){return '<div class="rxcat">'+esc(c[0])+'</div><div class="rxrow">'+c[1].split(" ").map(function(x){return '<button type="button" data-emoji="'+esc(x)+'" aria-label="'+esc(x)+'">'+esc(x)+'</button>'}).join("")+'</div>'}).join("")+'</div>';
+    body.appendChild(emojiPanel);
+    emojiPanel.addEventListener("mousedown",function(e){if(e.target.closest("[data-emoji]"))e.preventDefault()}); // yazı kutusu odağını kaybetmesin
+    emojiPanel.addEventListener("click",function(e){
+      var b=e.target.closest("[data-emoji]");
+      if(b){insertEmoji(b.dataset.emoji);return}
+      if(e.target.closest("[data-emojiclose]"))closeEmojiPanel();
+    });
+    document.addEventListener("keydown",emojiKey,true);
   }
   function openLightbox(src){
     var d=document.createElement("div");d.className="lightbox";d.innerHTML='<img alt="Görsel" src="'+esc(src)+'">';
@@ -1725,6 +1764,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
     else if(a==="clearImg")clearChatImg();
     else if(a==="zoom")openLightbox(t.dataset.full||t.getAttribute("src"));
     else if(a==="gifOpen")openGifPanel();
+    else if(a==="emojiOpen")openEmojiPanel();
     else if(a==="rxwho")openRxSheet(+t.dataset.id);
     else if(a==="react")reactChat(+t.dataset.id,t.dataset.kind);
     else if(a==="rxpick"){var pm=+t.dataset.id;rxOpen=rxOpen===pm?0:pm;rxFull=0;updateChatUI(false)}
