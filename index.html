@@ -273,6 +273,7 @@ button.rxrowp:hover{background:var(--surface2)}
 .msg.mine .qt{background:rgba(255,255,255,.25);border-left-color:#fff}
 @keyframes qflash{0%,40%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:var(--shadow)}}
 .msg.flash{animation:qflash 1.2s ease-out}
+.chattyping{min-height:1.2em;font-size:.78rem;font-style:italic;color:var(--muted)}
 .chatreply{display:flex;align-items:center;gap:8px;border-left:3px solid var(--accent);background:var(--field);border-radius:8px;padding:6px 8px;min-width:0}
 .chatreply[hidden]{display:none}
 .chatreply div{flex:1;min-width:0}
@@ -817,6 +818,26 @@ button.rxrowp:hover{background:var(--surface2)}
     p.hidden=false;
     p.innerHTML='<div><b>'+esc(replyTo.nick)+'</b><span>'+esc(replyTo.text)+'</span></div><button class="link" type="button" data-action="clearReply" aria-label="Yanıtı iptal et">&times;</button>';
   }
+  /* "Yazıyor…": yazarken sinyal gönderilir, sohbet açıkken 2 saniyede bir kimlerin yazdığına bakılır. */
+  var typers=[], typingSent=0;
+  function updateTypingUI(){
+    var t=el("chatTyping");if(!t)return;
+    var n=typers.length;
+    t.textContent=!n?"":n===1?typers[0].nick+" yazıyor…":n===2?typers[0].nick+" ve "+typers[1].nick+" yazıyor…":n+" kişi yazıyor…";
+  }
+  async function loadTyping(){
+    if(!chatOpen||!BASE||!KEY)return;
+    try{
+      var r=await sb("/rest/v1/chat_typing_public?select=player_id,nick");
+      typers=r.filter(function(x){return !(auth&&x.player_id===auth.id)});
+    }catch(e){return}
+    updateTypingUI();
+  }
+  function sendTyping(){
+    if(!auth||Date.now()-typingSent<2500)return;
+    typingSent=Date.now();
+    rpc("chat_typing",{p_token:auth.token}).catch(function(){});
+  }
   function setReply(id){
     var m=chat.find(function(x){return x.id===id});if(!m||!auth)return;
     replyTo={id:m.id,nick:m.nick,text:snipText(m.body,m.image)};
@@ -907,9 +928,9 @@ button.rxrowp:hover{background:var(--surface2)}
     if(key===chatFootKey)return;
     chatFootKey=key;
     foot.innerHTML=auth?
-      '<div class="chatreply" id="chatReply" hidden></div><div class="chatprev" id="chatPrev" hidden></div><div class="chatform"><button class="chatattach" type="button" data-action="pickImg" aria-label="Galeriden fotoğraf ekle">'+IMG_SVG+'</button><button class="chatattach chatcam" type="button" data-action="pickCam" aria-label="Fotoğraf çek">'+CAM_SVG+'</button><input type="file" id="chatFile" accept="image/*" hidden><input type="file" id="chatCam" accept="image/*" capture="environment" hidden><input id="chatInput" maxlength="300" autocomplete="off" placeholder="Mesaj yaz…" value="'+esc(chatDraft)+'" aria-label="Mesaj"><button class="chatsend" id="chatSend" type="button" data-action="sendChat" aria-label="Gönder">'+SEND_SVG+'</button></div><span class="state warn" id="chatErr">'+esc(chatErr)+'</span>':
-      '<span class="state">Mesaj yazmak için önce sayfadan giriş yap.</span>';
-    updateChatPrev();updateReplyPrev();
+      '<div class="chattyping" id="chatTyping" aria-live="polite"></div><div class="chatreply" id="chatReply" hidden></div><div class="chatprev" id="chatPrev" hidden></div><div class="chatform"><button class="chatattach" type="button" data-action="pickImg" aria-label="Galeriden fotoğraf ekle">'+IMG_SVG+'</button><button class="chatattach chatcam" type="button" data-action="pickCam" aria-label="Fotoğraf çek">'+CAM_SVG+'</button><input type="file" id="chatFile" accept="image/*" hidden><input type="file" id="chatCam" accept="image/*" capture="environment" hidden><input id="chatInput" maxlength="300" autocomplete="off" placeholder="Mesaj yaz…" value="'+esc(chatDraft)+'" aria-label="Mesaj"><button class="chatsend" id="chatSend" type="button" data-action="sendChat" aria-label="Gönder">'+SEND_SVG+'</button></div><span class="state warn" id="chatErr">'+esc(chatErr)+'</span>':
+      '<div class="chattyping" id="chatTyping" aria-live="polite"></div><span class="state">Mesaj yazmak için önce sayfadan giriş yap.</span>';
+    updateChatPrev();updateReplyPrev();updateTypingUI();
   }
   function setChatOpen(open){
     chatOpen=!!open;
@@ -918,9 +939,10 @@ button.rxrowp:hover{background:var(--surface2)}
     if(chatOpen){
       renderChatFoot();
       loadChat().then(function(){updateChatUI(true)});
+      loadTyping();
       updateChatUI(true);
       var inp=el("chatInput");if(inp)setTimeout(function(){inp.focus()},50);
-    } else updateChatUI(false);
+    } else{typers=[];updateChatUI(false)}
   }
   /* WhatsApp gibi: gün etiketi (sticky) tepeye yapışır, yeni güne gelince eskisini iter.
      Kaydırma durunca sadece tepeye yapışmış (doğal yerinden yukarı kaymış) etiket kaybolur,
@@ -1337,7 +1359,8 @@ button.rxrowp:hover{background:var(--surface2)}
     var btn=document.querySelector('[data-action="savePred"][data-m="'+t.dataset.m+'"]');
     if(btn)btn.disabled=!(h!==""&&a!==""&&+h>=0&&+a>=0&&+h<=30&&+a<=30);
   });
-  document.addEventListener("input",function(e){if(e.target&&e.target.id==="chatInput")chatDraft=e.target.value});
+  document.addEventListener("input",function(e){if(e.target&&e.target.id==="chatInput"){chatDraft=e.target.value;if(chatDraft.trim())sendTyping()}});
+  setInterval(function(){if(!document.hidden&&chatOpen)loadTyping()},2000);
   document.addEventListener("change",function(e){var t=e.target;if(t&&(t.id==="chatFile"||t.id==="chatCam")){var f=t.files&&t.files[0];t.value="";pickChatImg(f)}});
   /* Görsel yüklenince yükseklik değişir: en alttaysak yeniden en alta kaydır. */
   document.addEventListener("load",function(e){var t=e.target;if(t&&t.classList&&t.classList.contains("chatimg")&&Date.now()<chatStickUntil){var box=el("chatlist");if(box){chatProg=Date.now();box.scrollTop=box.scrollHeight}}},true);
