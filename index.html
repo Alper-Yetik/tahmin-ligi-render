@@ -1194,7 +1194,7 @@ button.rxrowp:hover{background:var(--surface2)}
     lpTimer=setTimeout(function(){
       lpTimer=0;lpAt=Date.now();
       var id=+msg.dataset.mid;rxOpen=id;rxFull=0;updateChatUI(false);
-      if(navigator.vibrate)try{navigator.vibrate(15)}catch(_){}
+      if(navigator.vibrate)try{navigator.vibrate(30)}catch(_){}
     },450);
   },{passive:true});
   document.addEventListener("touchmove",function(e){
