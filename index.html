@@ -273,6 +273,8 @@ button.rxrowp:hover{background:var(--surface2)}
 .msg.mine .qt{background:rgba(255,255,255,.25);border-left-color:#fff}
 @keyframes qflash{0%,40%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:var(--shadow)}}
 .msg.flash{animation:qflash 1.2s ease-out}
+@media (max-width:520px){body.chatlock{position:fixed;top:var(--lockTop,0);left:0;right:0;width:100%;overflow:hidden}}
+.chatpanel,.chathead,.chatfoot{overscroll-behavior:contain;touch-action:manipulation}
 .chattyping{min-height:1.2em;font-size:.78rem;font-style:italic;color:var(--muted)}
 .chatreply{display:flex;align-items:center;gap:8px;border-left:3px solid var(--accent);background:var(--field);border-radius:8px;padding:6px 8px;min-width:0}
 .chatreply[hidden]{display:none}
@@ -842,7 +844,7 @@ button.rxrowp:hover{background:var(--surface2)}
     var m=chat.find(function(x){return x.id===id});if(!m||!auth)return;
     replyTo={id:m.id,nick:m.nick,text:snipText(m.body,m.image)};
     rxOpen=0;rxFull=0;updateChatUI(false);updateReplyPrev();
-    var inp=el("chatInput");if(inp)inp.focus();
+    var inp=el("chatInput");if(inp)inp.focus({preventScroll:true});
   }
   function gotoMsg(id){
     var n=document.querySelector('.msg[data-mid="'+id+'"]');if(!n)return;
@@ -932,8 +934,23 @@ button.rxrowp:hover{background:var(--surface2)}
       '<div class="chattyping" id="chatTyping" aria-live="polite"></div><span class="state">Mesaj yazmak için önce sayfadan giriş yap.</span>';
     updateChatPrev();updateReplyPrev();updateTypingUI();
   }
+  /* Telefonda sohbet açıkken arkadaki sayfa kilitlenir (kaydırınca kaymaz), klavye açılınca panel görünen alana sığar. */
+  var chatLockY=0;
+  function lockPage(on){
+    var b=document.body, mob=matchMedia("(max-width:520px)").matches;
+    if(on&&mob&&!b.classList.contains("chatlock")){chatLockY=window.scrollY;b.style.setProperty("--lockTop",-chatLockY+"px");b.classList.add("chatlock")}
+    else if(!on&&b.classList.contains("chatlock")){b.classList.remove("chatlock");b.style.removeProperty("--lockTop");window.scrollTo(0,chatLockY)}
+  }
+  function fitChat(){
+    var p=el("chatPanel");if(!p)return;
+    var vv=window.visualViewport;
+    if(chatOpen&&vv&&matchMedia("(max-width:520px)").matches&&window.innerHeight-vv.height>100){
+      p.style.top=(vv.offsetTop+8)+"px";p.style.bottom="auto";p.style.height=(vv.height-16)+"px";
+    }else{p.style.top="";p.style.bottom="";p.style.height=""}
+  }
   function setChatOpen(open){
     chatOpen=!!open;
+    lockPage(chatOpen);fitChat();
     el("chatPanel").hidden=!chatOpen;
     var fab=el("chatFab");fab.setAttribute("aria-expanded",String(chatOpen));fab.setAttribute("aria-label",chatOpen?"Sohbeti kapat":"Sohbeti aç");
     if(chatOpen){
@@ -941,7 +958,7 @@ button.rxrowp:hover{background:var(--surface2)}
       loadChat().then(function(){updateChatUI(true)});
       loadTyping();
       updateChatUI(true);
-      var inp=el("chatInput");if(inp)setTimeout(function(){inp.focus()},50);
+      var inp=el("chatInput");if(inp&&!matchMedia("(pointer:coarse)").matches)setTimeout(function(){inp.focus()},50);
     } else{typers=[];updateChatUI(false)}
   }
   /* WhatsApp gibi: gün etiketi (sticky) tepeye yapışır, yeni güne gelince eskisini iter.
@@ -1372,6 +1389,7 @@ button.rxrowp:hover{background:var(--surface2)}
     if(chatOpen||chatTick%5===0)loadChat();
   },4000);
   el("chatlist").addEventListener("scroll",onChatScroll,{passive:true});
+  if(window.visualViewport){visualViewport.addEventListener("resize",fitChat);visualViewport.addEventListener("scroll",fitChat)}
   el("chatFab").addEventListener("click",function(){setChatOpen(!chatOpen)});
   el("chatClose").addEventListener("click",function(){setChatOpen(false);el("chatFab").focus()});
   document.addEventListener("keydown",function(e){if(e.key==="Escape"&&chatOpen){setChatOpen(false);el("chatFab").focus()}});
