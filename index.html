@@ -275,6 +275,8 @@ button.rxrowp:hover{background:var(--surface2)}
 .msg.flash{animation:qflash 1.2s ease-out}
 @media (max-width:520px){body.chatlock{position:fixed;top:var(--lockTop,0);left:0;right:0;width:100%;overflow:hidden}}
 .chatpanel,.chathead,.chatfoot{overscroll-behavior:contain;touch-action:manipulation}
+.msg.gone{font-style:italic;opacity:.75}
+.mfoot{display:flex;justify-content:flex-end;align-items:center;gap:3px;margin-top:2px;line-height:1}
 .tick{background:none;border:0;padding:0 2px;font:inherit;font-size:.78rem;font-weight:800;letter-spacing:-.18em;color:inherit;opacity:.6;cursor:pointer}
 .tick.some{opacity:.95}
 .tick.all{color:#1565c0;opacity:1;text-shadow:0 0 1px rgba(255,255,255,.6)}
@@ -815,13 +817,39 @@ button.rxrowp:hover{background:var(--surface2)}
   function rpBtn(m){return auth?'<button type="button" class="rxadd" data-action="reply" data-id="'+m.id+'" aria-label="Yanıtla">↩</button>':""}
   function qtHtml(m){
     if(!m.reply_to||!m.reply_nick)return "";
-    return '<button type="button" class="qt" data-action="goto" data-id="'+m.reply_to+'" aria-label="Yanıtlanan mesaja git"><b>'+esc(m.reply_nick)+'</b><span>'+esc(snipText(m.reply_body,m.reply_image))+'</span></button>';
+    return '<button type="button" class="qt" data-action="goto" data-id="'+m.reply_to+'" aria-label="Yanıtlanan mesaja git"><b>'+esc(m.reply_nick)+'</b><span>'+esc(m.reply_deleted?"🚫 Bu mesaj silindi":snipText(m.reply_body,m.reply_image))+'</span></button>';
+  }
+  /* Düzenleme: kendi mesajın, gönderdikten sonra 15 dakika içinde. Yazı kutusu mesajın metniyle dolar. */
+  var editMsg=null;
+  function canEdit(m){return auth&&m.player_id===auth.id&&!m.deleted&&Date.now()-Date.parse(m.created_at)<14*60000}
+  function startEdit(id){
+    var m=chat.find(function(x){return x.id===id});if(!m||!canEdit(m))return;
+    editMsg={id:m.id,text:m.body||"📷 Fotoğraf"};replyTo=null;clearChatImg();
+    var inp=el("chatInput");if(inp){inp.value=m.body||"";chatDraft=inp.value}
+    rxOpen=0;rxFull=0;updateChatUI(false);updateReplyPrev();
+    if(inp)inp.focus({preventScroll:true});
+  }
+  function cancelEdit(){
+    if(!editMsg)return;
+    editMsg=null;var inp=el("chatInput");if(inp){inp.value="";chatDraft=""}
+  }
+  async function delMsg(id){
+    rxOpen=0;rxFull=0;
+    if(!auth||!confirm("Bu mesaj herkes için silinsin mi?")){updateChatUI(false);return}
+    try{
+      var r=await rpc("delete_chat",{p_token:auth.token,p_id:id});
+      if(r&&r.error==="not_logged_in"){auth=null;lsDel("tl_auth");chatFootKey="";render()}
+      if(editMsg&&editMsg.id===id){cancelEdit();updateReplyPrev()}
+      if(replyTo&&replyTo.id===id){replyTo=null;updateReplyPrev()}
+    }catch(e){}
+    await loadChat();
   }
   function updateReplyPrev(){
     var p=el("chatReply");if(!p)return;
-    if(!replyTo){p.hidden=true;p.innerHTML="";return}
+    var src=editMsg?{nick:"Mesajı düzenle",text:editMsg.text}:replyTo;
+    if(!src){p.hidden=true;p.innerHTML="";return}
     p.hidden=false;
-    p.innerHTML='<div><b>'+esc(replyTo.nick)+'</b><span>'+esc(replyTo.text)+'</span></div><button class="link" type="button" data-action="clearReply" aria-label="Yanıtı iptal et">&times;</button>';
+    p.innerHTML='<div><b>'+esc(src.nick)+'</b><span>'+esc(src.text)+'</span></div><button class="link" type="button" data-action="clearReply" aria-label="İptal et">&times;</button>';
   }
   /* "Yazıyor…": yazarken sinyal gönderilir, sohbet açıkken 2 saniyede bir kimlerin yazdığına bakılır. */
   var typers=[], typingSent=0;
@@ -899,6 +927,8 @@ button.rxrowp:hover{background:var(--surface2)}
     if(auth&&rxOpen===m.id){
       pick='<div class="rxpick">'+RX_QUICK.map(function(e){return rxBtn(m.id,e)}).join("")+
         '<button type="button" class="rxmore" data-action="reply" data-id="'+m.id+'" aria-label="Yanıtla">↩</button>'+
+        (canEdit(m)?'<button type="button" class="rxmore" data-action="editMsg" data-id="'+m.id+'" aria-label="Düzenle">✎</button>':'')+
+        (auth&&m.player_id===auth.id?'<button type="button" class="rxmore" data-action="delMsg" data-id="'+m.id+'" aria-label="Sil">🗑</button>':'')+
         '<button type="button" class="rxmore" data-action="rxmore" data-id="'+m.id+'" aria-label="Tüm emojiler" aria-expanded="'+(rxFull===m.id)+'">'+(rxFull===m.id?'−':'+')+'</button></div>';
       if(rxFull===m.id)pick+='<div class="rxgrid">'+RX_ALL.map(function(c){
         return '<div class="rxcat">'+esc(c[0])+'</div><div class="rxrow">'+c[1].split(" ").map(function(e){return rxBtn(m.id,e)}).join("")+'</div>';
@@ -1110,10 +1140,17 @@ button.rxrowp:hover{background:var(--surface2)}
         lastDay=dk;
         html+='<div class="daygrp"><div class="daysep"><span>'+esc(dayLabel(ts))+'</span></div>';
       }
-      html+='<div class="mrow'+(mine?' mine':'')+'">'+(mine?rpBtn(m)+rxAddBtn(m):'')+'<div class="msg'+(mine?' mine':'')+'" data-mid="'+m.id+'"><span class="who">'+esc(m.nick)+'</span> <span class="t">'+fmtTime(ts)+'</span>'+(mine?tickHtml(m):'')+
+      if(m.deleted){
+        html+='<div class="mrow'+(mine?' mine':'')+'"><div class="msg gone'+(mine?' mine':'')+'"><span class="who">'+esc(m.nick)+'</span>'+
+          (isAdmin()?' <button class="link" data-action="delChat" data-id="'+m.id+'" aria-label="Mesajı sil">sil</button>':'')+
+          '<div>🚫 Bu mesaj silindi</div><div class="mfoot"><span class="t">'+fmtTime(ts)+'</span></div></div></div>';
+        return;
+      }
+      html+='<div class="mrow'+(mine?' mine':'')+'">'+(mine?rpBtn(m)+rxAddBtn(m):'')+'<div class="msg'+(mine?' mine':'')+'" data-mid="'+m.id+'"><span class="who">'+esc(m.nick)+'</span>'+
         (isAdmin()?' <button class="link" data-action="delChat" data-id="'+m.id+'" aria-label="Mesajı sil">sil</button>':'')+
         qtHtml(m)+
-        (m.body?'<div>'+esc(m.body)+'</div>':'')+(m.image?'<img class="chatimg" loading="lazy" data-action="zoom" alt="Gönderilen fotoğraf" src="'+esc(BASE+"/storage/v1/object/public/chat-images/"+m.image)+'">':'')+rxHtml(m)+'</div>'+(mine?'':rxAddBtn(m)+rpBtn(m))+'</div>';
+        (m.body?'<div>'+esc(m.body)+'</div>':'')+(m.image?'<img class="chatimg" loading="lazy" data-action="zoom" alt="Gönderilen fotoğraf" src="'+esc(BASE+"/storage/v1/object/public/chat-images/"+m.image)+'">':'')+
+        '<div class="mfoot"><span class="t">'+fmtTime(ts)+(m.edited_at?' · düzenlendi':'')+'</span>'+(mine?tickHtml(m):'')+'</div>'+rxHtml(m)+'</div>'+(mine?'':rxAddBtn(m)+rpBtn(m))+'</div>';
     });
     return html+(lastDay?'</div>':'');
   }
@@ -1148,8 +1185,24 @@ button.rxrowp:hover{background:var(--surface2)}
   }
   async function sendChat(){
     var inp=el("chatInput");if(!inp||!auth||chatBusy)return;
-    var text=inp.value.trim();if(!text&&!chatPend)return;
+    var text=inp.value.trim();if(!text&&!chatPend&&!editMsg)return;
     chatBusy=true;var btn=el("chatSend");if(btn)btn.disabled=true;
+    if(editMsg){
+      try{
+        var er0=await rpc("edit_chat",{p_token:auth.token,p_id:editMsg.id,p_body:text});
+        if(er0.ok){inp.value="";chatDraft="";chatErr="";editMsg=null;updateReplyPrev()}
+        else{
+          chatErr=er0.error==="too_late"?"Düzenleme süresi (15 dk) doldu.":er0.error==="not_found"?"Mesaj artık düzenlenemez.":(ERR[er0.error]||"Kaydedilemedi.");
+          if(er0.error==="too_late"||er0.error==="not_found"){cancelEdit();updateReplyPrev()}
+          if(er0.error==="not_logged_in"){auth=null;lsDel("tl_auth");chatFootKey="";render()}
+        }
+      }catch(e){chatErr="Bağlantı hatası, tekrar dene."}
+      chatBusy=false;
+      var b3=el("chatSend");if(b3)b3.disabled=false;
+      var er3=el("chatErr");if(er3)er3.textContent=chatErr;
+      await loadChat();updateChatUI(false);
+      return;
+    }
     try{
       var r;
       if(chatPend){
@@ -1386,7 +1439,9 @@ button.rxrowp:hover{background:var(--surface2)}
     else if(a==="rxpick"){var pm=+t.dataset.id;rxOpen=rxOpen===pm?0:pm;rxFull=0;updateChatUI(false)}
     else if(a==="rxmore"){var fm=+t.dataset.id;rxFull=rxFull===fm?0:fm;updateChatUI(false)}
     else if(a==="reply")setReply(+t.dataset.id);
-    else if(a==="clearReply"){replyTo=null;updateReplyPrev()}
+    else if(a==="clearReply"){if(editMsg)cancelEdit();replyTo=null;updateReplyPrev()}
+    else if(a==="editMsg")startEdit(+t.dataset.id);
+    else if(a==="delMsg")delMsg(+t.dataset.id);
     else if(a==="goto")gotoMsg(+t.dataset.id);
     else if(a==="readers")openReadSheet(+t.dataset.id);
     else if(a==="delChat")delChat(t.dataset.id);
