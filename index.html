@@ -220,6 +220,8 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 .chatlist{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:0 16px 16px;background:var(--bg);overscroll-behavior:contain}
 .chatlist .state{text-align:center;margin:auto}
 .msg{align-self:flex-start;max-width:86%;background:var(--surface);border:1px solid var(--line);border-radius:16px 16px 16px 4px;padding:8px 12px;overflow-wrap:anywhere;min-width:0;box-shadow:var(--shadow)}
+.msg{position:relative}
+.msg.canrx{padding-bottom:26px}
 .msg.mine{align-self:flex-end;border-radius:16px 16px 4px 16px;border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--accent-ink)}
 .msg .who{font-family:var(--display);font-weight:700;font-size:1.02rem;letter-spacing:.03em}
 .rxbar{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:6px}
@@ -227,7 +229,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 .rx b{font-family:var(--display);font-size:.95rem;font-variant-numeric:tabular-nums}
 button.rx{cursor:pointer}
 .rx.mine{border-color:var(--accent);background:var(--accent-soft)}
-.rxadd{background:none;border:1px dashed var(--line);border-radius:999px;width:26px;height:24px;padding:0;color:inherit;font-size:.85rem;line-height:1;opacity:.5;cursor:pointer}
+.rxadd{position:absolute;right:6px;bottom:4px;background:none;border:0;border-radius:50%;width:22px;height:22px;padding:0;color:inherit;font-size:.9rem;line-height:1;opacity:.55;cursor:pointer}
 .rxadd:hover,.rxadd[aria-expanded="true"],.rxadd:focus-visible{opacity:1}
 .rxpick{display:flex;flex-wrap:wrap;gap:2px;margin-top:6px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:3px 8px;box-shadow:var(--shadow);width:max-content;max-width:100%}
 .rxpick button{background:none;border:0;font-size:1.3rem;padding:2px 5px;border-radius:8px;line-height:1;cursor:pointer}
@@ -253,7 +255,6 @@ button.rxrowp:hover{background:var(--surface2)}
 .rxe{font-size:1.5rem;line-height:1}
 .msg.mine .rx{background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.35);color:inherit}
 .msg.mine .rx.mine{background:rgba(255,255,255,.42);border-color:#fff}
-.msg.mine .rxadd{border-color:rgba(255,255,255,.55)}
 .daygrp{display:flex;flex-direction:column;gap:10px;min-width:0}
 .daysep{position:sticky;top:0;z-index:3;display:flex;justify-content:center;padding:10px 0 4px;pointer-events:none}
 .daysep.idle span{opacity:0}
@@ -795,8 +796,8 @@ button.rxrowp:hover{background:var(--surface2)}
       var mineR=auth&&g.some(function(r){return r.player_id===auth.id});
       h+='<button type="button" class="rx'+(mineR?' mine':'')+'" data-action="rxwho" data-id="'+m.id+'" title="'+esc(names)+'" aria-label="'+esc(k+' '+g.length+': '+names)+'">'+e+'<b>'+g.length+'</b></button>';
     });
-    if(auth)h+='<button type="button" class="rxadd" data-action="rxpick" data-id="'+m.id+'" aria-label="Tepki bırak" aria-expanded="'+(rxOpen===m.id)+'">☺</button>';
-    if(!h)return "";
+    var add=auth?'<button type="button" class="rxadd" data-action="rxpick" data-id="'+m.id+'" aria-label="Tepki bırak" aria-expanded="'+(rxOpen===m.id)+'">☺</button>':"";
+    if(!h&&!add)return "";
     var pick="";
     if(auth&&rxOpen===m.id){
       pick='<div class="rxpick">'+RX_QUICK.map(function(e){return rxBtn(m.id,e)}).join("")+
@@ -805,7 +806,7 @@ button.rxrowp:hover{background:var(--surface2)}
         return '<div class="rxcat">'+esc(c[0])+'</div><div class="rxrow">'+c[1].split(" ").map(function(e){return rxBtn(m.id,e)}).join("")+'</div>';
       }).join("")+'</div>';
     }
-    return '<div class="rxbar">'+h+'</div>'+pick;
+    return (h?'<div class="rxbar">'+h+'</div>':'')+pick+add;
   }
   /* Tepki listesi (WhatsApp gibi): kutucuğa basınca kimin hangi emojiyi bıraktığı çıkar; kendi tepkine basınca kalkar. */
   function openRxSheet(mid){
@@ -995,7 +996,7 @@ button.rxrowp:hover{background:var(--surface2)}
         lastDay=dk;
         html+='<div class="daygrp"><div class="daysep"><span>'+esc(dayLabel(ts))+'</span></div>';
       }
-      html+='<div class="msg'+(mine?' mine':'')+'"><span class="who">'+esc(m.nick)+'</span> <span class="t">'+fmtTime(ts)+'</span>'+
+      html+='<div class="msg'+(mine?' mine':'')+(auth?' canrx':'')+'"><span class="who">'+esc(m.nick)+'</span> <span class="t">'+fmtTime(ts)+'</span>'+
         (isAdmin()?' <button class="link" data-action="delChat" data-id="'+m.id+'" aria-label="Mesajı sil">sil</button>':'')+
         (m.body?'<div>'+esc(m.body)+'</div>':'')+(m.image?'<img class="chatimg" loading="lazy" data-action="zoom" alt="Gönderilen fotoğraf" src="'+esc(BASE+"/storage/v1/object/public/chat-images/"+m.image)+'">':'')+rxHtml(m)+'</div>';
     });
