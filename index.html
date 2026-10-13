@@ -1230,11 +1230,11 @@ button.pill.pop{animation:rxpop .28s ease-out}
       img.src=url;
     });
   }
-  function randName(){var a=new Uint8Array(16);crypto.getRandomValues(a);return Array.prototype.map.call(a,function(x){return ("0"+x.toString(16)).slice(-2)}).join("")+".jpg"}
+  function randName(ext){var a=new Uint8Array(16);crypto.getRandomValues(a);return Array.prototype.map.call(a,function(x){return ("0"+x.toString(16)).slice(-2)}).join("")+"."+(ext||"jpg")}
   async function uploadChatImg(blob){
-    var name=randName();
+    var gif=blob.type==="image/gif", name=randName(gif?"gif":"jpg");
     try{
-      var h={apikey:KEY,"Content-Type":"image/jpeg","x-upsert":"false"};
+      var h={apikey:KEY,"Content-Type":gif?"image/gif":"image/jpeg","x-upsert":"false"};
       if(KEY.indexOf("eyJ")===0)h.Authorization="Bearer "+KEY;
       var r=await fetch(BASE+"/storage/v1/object/chat-images/"+name,{method:"POST",headers:h,body:blob});
       if(!r.ok)return {ok:false,error:"upload_failed"};
@@ -1272,6 +1272,13 @@ button.pill.pop{animation:rxpop .28s ease-out}
     if(!f)return;
     var er=el("chatErr");
     if(f.type&&!/^image\//.test(f.type)){chatErr="Sadece fotoğraf eklenebilir.";if(er)er.textContent=chatErr;return}
+    /* GIF küçültülmeden olduğu gibi gider (animasyon bozulmasın), en çok 2,5 MB. */
+    if(f.type==="image/gif"||/\.gif$/i.test(f.name||"")){
+      if(f.size>2.5*1024*1024){chatErr="GIF en fazla 2,5 MB olabilir.";if(er)er.textContent=chatErr;return}
+      var gb=f.type==="image/gif"?f:new Blob([f],{type:"image/gif"});
+      clearChatImg();chatPend={blob:gb,url:URL.createObjectURL(gb)};chatErr="";if(er)er.textContent="";predQuote=null;updateReplyPrev();updateChatPrev();
+      return;
+    }
     try{var b=await shrinkImage(f);clearChatImg();chatPend={blob:b,url:URL.createObjectURL(b)};chatErr="";if(er)er.textContent="";predQuote=null;updateReplyPrev();updateChatPrev()}
     catch(e){chatErr="Fotoğraf okunamadı, başka bir tane dene.";if(er)er.textContent=chatErr}
   }
@@ -1657,6 +1664,13 @@ button.pill.pop{animation:rxpop .28s ease-out}
     var h=d.h===undefined?"":d.h,a=d.a===undefined?"":d.a;
     var btn=document.querySelector('[data-action="savePred"][data-m="'+t.dataset.m+'"]');
     if(btn)btn.disabled=!(h!==""&&a!==""&&+h>=0&&+a>=0&&+h<=30&&+a<=30);
+  });
+  /* Yazı kutusuna yapıştırılan görsel ya da GIF (klavyedeki GIF'ler dahil) gönderilecek görsel olarak eklenir. */
+  document.addEventListener("paste",function(e){
+    if(!auth||!e.target||e.target.id!=="chatInput")return;
+    var fs=e.clipboardData&&e.clipboardData.files, f=null;
+    if(fs)for(var i=0;i<fs.length;i++){if(/^image\//.test(fs[i].type)){f=fs[i];break}}
+    if(f){e.preventDefault();pickChatImg(f)}
   });
   document.addEventListener("input",function(e){if(e.target&&e.target.id==="chatInput"){chatDraft=e.target.value;if(chatDraft.trim())sendTyping()}});
   setInterval(function(){if(!document.hidden&&chatOpen)loadTyping()},2000);
