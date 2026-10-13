@@ -131,7 +131,7 @@ Mesaj yazmak için giriş yapmak gerekir, mesaj üyenin kendi adıyla görünür
 
 ## Üyelik
 
-- **Üye ol:** Kullanıcı adı (2-24 karakter) ve en az 6 karakterlik şifre. Şifre veritabanında bcrypt ile saklanır, geri okunamaz.
+- **Üye ol:** Kullanıcı adı (2-24 karakter) ve en az 6 karakterlik şifre. Kullanıcı adının baş harfi kayıtta otomatik büyük yapılır (Türkçe kurala uygun: `i` → `İ`, `ı` → `I`), gerisi yazıldığı gibi kalır. Şifre veritabanında bcrypt ile saklanır, geri okunamaz.
 - **Giriş:** Başarılı girişte cihaza 60 günlük bir oturum anahtarı verilir (veritabanında sadece özeti saklanır). Tahmin ve sohbet işlemleri bu anahtarla yapılır, kullanıcı adı yazarak yapılamaz.
 - **Kilitlenme:** 5 yanlış şifre ya da kod denemesinde hesap 15 dakika kilitlenir.
 - **Şifre değiştirme:** Giriş yapmış üye "şifre değiştir" ile değiştirir, diğer cihazlardaki oturumları kapanır.

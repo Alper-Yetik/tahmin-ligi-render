@@ -46,6 +46,10 @@ create or replace function member_register(p_nick text, p_password text)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare n text := btrim(coalesce(p_nick, '')); pid uuid;
 begin
+  -- Adın baş harfi otomatik büyük olur (Türkçe: i -> İ, ı -> I). Gerisi yazıldığı gibi kalır.
+  if n <> '' then
+    n := (case left(n, 1) when 'i' then 'İ' when 'ı' then 'I' else upper(left(n, 1)) end) || substr(n, 2);
+  end if;
   if char_length(n) < 2 or char_length(n) > 24 or n ~ '[<>]' then return jsonb_build_object('ok', false, 'error', 'invalid_nick'); end if;
   if p_password is null or char_length(p_password) < 6 or char_length(p_password) > 72 then return jsonb_build_object('ok', false, 'error', 'invalid_password'); end if;
   if (select count(*) from players where created_at > now() - interval '1 hour') >= 30 then return jsonb_build_object('ok', false, 'error', 'busy'); end if;
