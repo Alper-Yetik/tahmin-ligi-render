@@ -713,7 +713,7 @@ button.rxrowp:hover{background:var(--surface2)}
       var k=teamKey(r.t), c=hex.test(r.c||"")?r.c:"";
       if(c&&r.n&&!seen[r.n]){seen[r.n]=1;legend+='<span><i style="background:'+c+'"></i>'+esc(noteTr(r.n))+'</span>'}
       var gd=(+r.gd||0)>0?"+"+r.gd:String(+r.gd||0);
-      h+='<tr class="'+(k?"club":"")+(r.lv?" livert"+(r.lr==="w"?" lv-w":r.lr==="l"?" lv-l":""):"")+'"><td class="rank"'+(c?' style="box-shadow:inset 4px 0 0 '+c+'"':'')+'>'+(+r.r||"")+'</td><td class="l tm">'+(k?'<span class="dot '+k+'"></span> ':'')+esc(r.t)+(r.lv?' <span class="lvs'+(r.lr==="w"?" lvs-w":r.lr==="d"?" lvs-d":"")+'"><i class="lvdot"></i>'+(r.lr==="w"?"▲ ":r.lr==="l"?"▼ ":r.lr==="d"?"= ":"")+'CANLI '+esc(r.lv)+'</span>':'')+'</td><td>'+(+r.o||0)+'</td><td>'+(+r.w||0)+'</td><td>'+(+r.d||0)+'</td><td>'+(+r.l||0)+'</td><td class="hm">'+(+r.gf||0)+'</td><td class="hm">'+(+r.ga||0)+'</td><td>'+gd+'</td><td class="sp">'+(+r.p||0)+'</td></tr>';
+      h+='<tr class="'+(k?"club":"")+(r.lv?" livert"+(r.lr==="w"?" lv-w":r.lr==="l"?" lv-l":""):"")+'"><td class="rank"'+(c?' style="box-shadow:inset 4px 0 0 '+c+'"':'')+'>'+(+r.r||"")+'</td><td class="l tm">'+(k?'<span class="dot '+k+'"></span> ':'')+esc(r.t)+(r.lv?' <span class="lvs'+(r.lr==="w"?" lvs-w":r.lr==="d"?" lvs-d":"")+'"><i class="lvdot"></i>'+(r.lr==="w"?"▲ ":r.lr==="l"?"▼ ":r.lr==="d"?"- ":"")+'CANLI '+esc(r.lv)+'</span>':'')+'</td><td>'+(+r.o||0)+'</td><td>'+(+r.w||0)+'</td><td>'+(+r.d||0)+'</td><td>'+(+r.l||0)+'</td><td class="hm">'+(+r.gf||0)+'</td><td class="hm">'+(+r.ga||0)+'</td><td>'+gd+'</td><td class="sp">'+(+r.p||0)+'</td></tr>';
     });
     h+='</tbody></table></div>';
     if(legend)h+='<div class="legend">'+legend+'</div>';
