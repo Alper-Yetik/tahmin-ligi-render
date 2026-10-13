@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Üçlü Tahmin Ligi</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,6 +37,8 @@
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
+/* Telefonda yakınlaştırma kapalı: çimdikle büyütme ve çift dokunma yok. iPhone 16 px'ten küçük yazı kutusuna odaklanınca sayfayı kendiliğinden büyütür, bu yüzden dokunmatik cihazlarda yazı kutuları en az 16 px. */
+html,body{touch-action:pan-x pan-y}
 body{
   margin:0;color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
   background-color:var(--bg);
@@ -47,6 +49,7 @@ body{
 .wrap{max-width:780px;margin-inline:auto;display:flex;flex-direction:column;gap:20px}
 h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
 button,input,select{font:inherit;color:inherit}
+@media (pointer:coarse){input,select,textarea{font-size:max(16px,1em)}} /* font:inherit'ten sonra gelmeli */
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .sub{color:var(--muted);margin:3px 0 0;font-size:.88rem}
@@ -273,7 +276,7 @@ button.rxrowp:hover{background:var(--surface2)}
 .msg.mine .qt{background:rgba(255,255,255,.25);border-left-color:#fff}
 @keyframes qflash{0%,40%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:var(--shadow)}}
 .msg.flash{animation:qflash 1.2s ease-out}
-@media (max-width:520px){body.chatlock{position:fixed;top:var(--lockTop,0);left:0;right:0;width:100%;overflow:hidden}}
+@media (max-width:520px),(pointer:coarse) and (max-width:900px){body.chatlock{position:fixed;top:var(--lockTop,0);left:0;right:0;width:100%;overflow:hidden}}
 .chatpanel,.chathead,.chatfoot{overscroll-behavior:contain;touch-action:manipulation}
 .msg.gone{font-style:italic;opacity:.75}
 .chatgifbtn{font-size:.68rem;font-weight:800;letter-spacing:.02em}
@@ -1148,14 +1151,14 @@ button.pill.pop{animation:rxpop .28s ease-out}
   /* Telefonda sohbet açıkken arkadaki sayfa kilitlenir (kaydırınca kaymaz), klavye açılınca panel görünen alana sığar. */
   var chatLockY=0;
   function lockPage(on){
-    var b=document.body, mob=matchMedia("(max-width:520px)").matches;
+    var b=document.body, mob=matchMedia("(max-width:520px),(pointer:coarse) and (max-width:900px)").matches;
     if(on&&mob&&!b.classList.contains("chatlock")){chatLockY=window.scrollY;b.style.setProperty("--lockTop",-chatLockY+"px");b.classList.add("chatlock")}
     else if(!on&&b.classList.contains("chatlock")){b.classList.remove("chatlock");b.style.removeProperty("--lockTop");window.scrollTo(0,chatLockY)}
   }
   function fitChat(){
     var p=el("chatPanel");if(!p)return;
     var vv=window.visualViewport;
-    if(chatOpen&&vv&&matchMedia("(max-width:520px)").matches&&window.innerHeight-vv.height>100){
+    if(chatOpen&&vv&&matchMedia("(max-width:520px),(pointer:coarse) and (max-width:900px)").matches&&window.innerHeight-vv.height>100){
       p.style.top=(vv.offsetTop+8)+"px";p.style.bottom="auto";p.style.height=(vv.height-16)+"px";
     }else{p.style.top="";p.style.bottom="";p.style.height=""}
   }
@@ -1777,6 +1780,8 @@ button.pill.pop{animation:rxpop .28s ease-out}
     if(chatOpen||chatTick%5===0)loadChat();
   },4000);
   el("chatlist").addEventListener("scroll",onChatScroll,{passive:true});
+  /* iPhone Safari çimdikle yakınlaştırmayı bu olaylarla yapar. */
+  ["gesturestart","gesturechange","gestureend"].forEach(function(n){document.addEventListener(n,function(e){e.preventDefault()},{passive:false})});
   if(window.visualViewport){visualViewport.addEventListener("resize",fitChat);visualViewport.addEventListener("scroll",fitChat)}
   el("chatFab").addEventListener("click",function(){setChatOpen(!chatOpen)});
   el("chatClose").addEventListener("click",function(){setChatOpen(false);el("chatFab").focus()});
