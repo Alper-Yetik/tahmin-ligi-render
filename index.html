@@ -276,6 +276,17 @@ button.rxrowp:hover{background:var(--surface2)}
 @media (max-width:520px){body.chatlock{position:fixed;top:var(--lockTop,0);left:0;right:0;width:100%;overflow:hidden}}
 .chatpanel,.chathead,.chatfoot{overscroll-behavior:contain;touch-action:manipulation}
 .msg.gone{font-style:italic;opacity:.75}
+.chatgifbtn{font-size:.68rem;font-weight:800;letter-spacing:.02em}
+.gifpanel{position:absolute;left:0;right:0;bottom:0;height:64%;display:flex;flex-direction:column;background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -8px 24px rgba(0,0,0,.18);z-index:6}
+.gifbar{display:flex;gap:8px;align-items:center;padding:10px 12px}
+.gifbar input{flex:1;min-width:0;background:var(--field);border:1.5px solid var(--line);border-radius:999px;padding:9px 14px}
+.gifbar input:focus{border-color:var(--accent);outline:none}
+.gifx{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--field);color:var(--ink);font-size:1.2rem;line-height:1;padding:0}
+.gifgrid{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;columns:2;column-gap:6px;padding:0 12px 8px}
+.gifgrid .state{column-span:all;text-align:center;padding:18px 0}
+.gifgrid button{display:block;width:100%;margin:0 0 6px;padding:0;border:0;border-radius:10px;overflow:hidden;background:var(--field);break-inside:avoid;cursor:pointer}
+.gifgrid img{display:block;width:100%;height:auto}
+.gifpow{text-align:center;font-size:.68rem;letter-spacing:.04em;color:var(--muted);padding:4px 0 6px}
 .unreadsep{display:flex;justify-content:center;padding:4px 0}
 .unreadsep span{background:var(--accent-soft);color:var(--ink);border:1px solid var(--accent);border-radius:999px;padding:3px 14px;font-size:.72rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
 .chatdown{position:absolute;right:14px;bottom:12px;width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);box-shadow:var(--shadow-lg);display:grid;place-items:center;font-size:1.3rem;line-height:1;z-index:5;padding:0}
@@ -433,7 +444,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
     <div><b>Sohbet</b><span>Maç günü sohbeti</span></div>
     <button class="chatx" id="chatClose" type="button" aria-label="Sohbeti kapat">&times;</button>
   </div>
-  <div class="chatbody">
+  <div class="chatbody" id="chatBody">
     <div id="chatlist" class="chatlist" aria-live="polite"></div>
     <button type="button" class="chatdown" id="chatDown" data-action="chatDown" aria-label="En alta in" hidden>↓<span class="cdn" id="chatDownN" hidden></span></button>
   </div>
@@ -443,7 +454,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
 <script src="config.js"></script>
 <script>
 (function(){
-  var CFG=window.TAHMIN_CONFIG||{}, BASE=(CFG.SUPABASE_URL||"").replace(/\/+$/,""), KEY=CFG.SUPABASE_ANON_KEY||"";
+  var CFG=window.TAHMIN_CONFIG||{}, GIPHY=CFG.GIPHY_KEY||"", BASE=(CFG.SUPABASE_URL||"").replace(/\/+$/,""), KEY=CFG.SUPABASE_ANON_KEY||"";
   var TEAMS=[{key:"fb",name:"Fenerbahçe"},{key:"gs",name:"Galatasaray"},{key:"bjk",name:"Beşiktaş"}];
   var COMPS=["Süper Lig","Şampiyonlar Ligi","Avrupa Ligi","Konferans Ligi","Türkiye Kupası","Süper Kupa"];
   var EXACT=5, DIFF=3, SIDE=2;
@@ -843,11 +854,11 @@ button.pill.pop{animation:rxpop .28s ease-out}
   function rxAddBtn(m){return auth?'<button type="button" class="rxadd" data-action="rxpick" data-id="'+m.id+'" aria-label="Tepki bırak" aria-expanded="'+(rxOpen===m.id)+'">☺</button>':""}
   /* Yanıt: yanıtlanan mesajın özeti, balonun içinde alıntı ve yazı kutusunun üstünde önizleme olarak görünür. */
   var replyTo=null;
-  function snipText(body,image){var s=(body||"").replace(/\s+/g," ").trim();return s||(image?"📷 Fotoğraf":"")}
+  function snipText(body,image,gif){var s=(body||"").replace(/\s+/g," ").trim();return s||(gif?"GIF":image?"📷 Fotoğraf":"")}
   function rpBtn(m){return auth?'<button type="button" class="rxadd" data-action="reply" data-id="'+m.id+'" aria-label="Yanıtla">↩</button>':""}
   function qtHtml(m){
     if(!m.reply_to||!m.reply_nick)return "";
-    return '<button type="button" class="qt" data-action="goto" data-id="'+m.reply_to+'" aria-label="Yanıtlanan mesaja git"><b>'+esc(m.reply_nick)+'</b><span>'+esc(m.reply_deleted?"🚫 Bu mesaj silindi":snipText(m.reply_body,m.reply_image))+'</span></button>';
+    return '<button type="button" class="qt" data-action="goto" data-id="'+m.reply_to+'" aria-label="Yanıtlanan mesaja git"><b>'+esc(m.reply_nick)+'</b><span>'+esc(m.reply_deleted?"🚫 Bu mesaj silindi":snipText(m.reply_body,m.reply_image,m.reply_gif))+'</span></button>';
   }
   /* Düzenleme: kendi mesajın, gönderdikten sonra 15 dakika içinde. Yazı kutusu mesajın metniyle dolar. */
   var editMsg=null, predQuote=null;
@@ -860,7 +871,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
   function canEdit(m){return auth&&m.player_id===auth.id&&!m.deleted&&Date.now()-Date.parse(m.created_at)<14*60000}
   function startEdit(id){
     var m=chat.find(function(x){return x.id===id});if(!m||!canEdit(m))return;
-    editMsg={id:m.id,text:m.body||"📷 Fotoğraf"};replyTo=null;predQuote=null;clearChatImg();
+    editMsg={id:m.id,text:m.body||(m.gif?"GIF":"📷 Fotoğraf")};replyTo=null;predQuote=null;clearChatImg();
     var inp=el("chatInput");if(inp){inp.value=m.body||"";chatDraft=inp.value}
     rxOpen=0;rxFull=0;updateChatUI(false);updateReplyPrev();
     if(inp)inp.focus({preventScroll:true});
@@ -891,8 +902,13 @@ button.pill.pop{animation:rxpop .28s ease-out}
   var typers=[], typingSent=0;
   /* Okundu bilgisi: ✓ gönderildi, ✓✓ en az biri okudu, mavi ✓✓ herkes okudu. Tike basınca kimlerin okuduğu açılır. */
   var reads=[], readSent=0;
+  /* "Herkes": benden başka, oynayan ya da sohbette yazan ya da okuma kaydı olan tüm üyeler. Sohbeti hiç açmamış olanlar da sayılır (okumadı). */
   function readState(m){
-    var others=reads.filter(function(r){return !(auth&&r.player_id===auth.id)});
+    var ids={}, rd={};
+    reads.forEach(function(r){rd[r.player_id]=r.last_id;ids[r.player_id]=1});
+    Object.keys(preds).forEach(function(k){ids[preds[k].u]=1});
+    chat.forEach(function(x){ids[x.player_id]=1});
+    var others=Object.keys(ids).filter(function(id){return !(auth&&id===auth.id)}).map(function(id){return {id:id,nick:nameOf(id),last_id:rd[id]||0}});
     var got=others.filter(function(r){return r.last_id>=m.id});
     return {others:others,got:got,cls:!got.length?"":(got.length===others.length?"all":"some")};
   }
@@ -938,7 +954,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
   }
   function setReply(id){
     var m=chat.find(function(x){return x.id===id});if(!m||!auth)return;
-    replyTo={id:m.id,nick:m.nick,text:snipText(m.body,m.image)};predQuote=null;
+    replyTo={id:m.id,nick:m.nick,text:snipText(m.body,m.image,m.gif)};predQuote=null;
     rxOpen=0;rxFull=0;updateChatUI(false);updateReplyPrev();
     var inp=el("chatInput");if(inp)inp.focus({preventScroll:true});
   }
@@ -1125,7 +1141,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
     if(key===chatFootKey)return;
     chatFootKey=key;
     foot.innerHTML=auth?
-      '<div class="chattyping" id="chatTyping" aria-live="polite"></div><div class="chatreply" id="chatReply" hidden></div><div class="chatprev" id="chatPrev" hidden></div><div class="chatform"><button class="chatattach" type="button" data-action="pickImg" aria-label="Galeriden fotoğraf ekle">'+IMG_SVG+'</button><button class="chatattach chatcam" type="button" data-action="pickCam" aria-label="Fotoğraf çek">'+CAM_SVG+'</button><input type="file" id="chatFile" accept="image/*" hidden><input type="file" id="chatCam" accept="image/*" capture="environment" hidden><input id="chatInput" maxlength="300" autocomplete="off" placeholder="Mesaj yaz…" value="'+esc(chatDraft)+'" aria-label="Mesaj"><button class="chatsend" id="chatSend" type="button" data-action="sendChat" aria-label="Gönder">'+SEND_SVG+'</button></div><span class="state warn" id="chatErr">'+esc(chatErr)+'</span>':
+      '<div class="chattyping" id="chatTyping" aria-live="polite"></div><div class="chatreply" id="chatReply" hidden></div><div class="chatprev" id="chatPrev" hidden></div><div class="chatform"><button class="chatattach" type="button" data-action="pickImg" aria-label="Galeriden fotoğraf ekle">'+IMG_SVG+'</button><button class="chatattach chatcam" type="button" data-action="pickCam" aria-label="Fotoğraf çek">'+CAM_SVG+'</button><button class="chatattach chatgifbtn" type="button" data-action="gifOpen" aria-label="GIF ara">GIF</button><input type="file" id="chatFile" accept="image/*" hidden><input type="file" id="chatCam" accept="image/*" capture="environment" hidden><input id="chatInput" maxlength="300" autocomplete="off" placeholder="Mesaj yaz…" value="'+esc(chatDraft)+'" aria-label="Mesaj"><button class="chatsend" id="chatSend" type="button" data-action="sendChat" aria-label="Gönder">'+SEND_SVG+'</button></div><span class="state warn" id="chatErr">'+esc(chatErr)+'</span>':
       '<div class="chattyping" id="chatTyping" aria-live="polite"></div><span class="state">Mesaj yazmak için önce sayfadan giriş yap.</span>';
     updateChatPrev();updateReplyPrev();updateTypingUI();
   }
@@ -1157,7 +1173,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
   }
   function setChatOpen(open){
     if(open&&!chatOpen){chatDivAfter=chatSeen;chatJump=true;lastBottomId=chatSeen}
-    if(!open){chatDivAfter=0;chatJump=false}
+    if(!open){chatDivAfter=0;chatJump=false;closeGifPanel()}
     chatOpen=!!open;
     lockPage(chatOpen);fitChat();
     el("chatPanel").hidden=!chatOpen;
@@ -1241,6 +1257,81 @@ button.pill.pop{animation:rxpop .28s ease-out}
       return {ok:true,name:name};
     }catch(e){return {ok:false,error:"upload_failed"}}
   }
+  /* GIF arama (Giphy): panel yazı kutusunun üstünde açılır, seçilen GIF'in Giphy kimliği mesajla gider (dosya yüklenmez).
+     Ücretsiz anahtar saatte 100 istekle sınırlı: yazmayı bıraktıktan 0,6 sn sonra aranır, sonuçlar 10 dk önbellekte tutulur. */
+  var gifCache={}, gifTimer=0, gifReq=0, gifPanel=null;
+  function gifFetch(q){
+    var ck=q||"~trend", c=gifCache[ck];
+    if(c&&Date.now()-c.t<600000)return Promise.resolve(c.d);
+    var url="https://api.giphy.com/v1/gifs/"+(q?"search":"trending")+"?api_key="+encodeURIComponent(GIPHY)+(q?"&q="+encodeURIComponent(q):"")+"&limit=24&rating=pg-13&lang=tr&bundle=messaging_non_clips";
+    return fetch(url).then(function(r){
+      if(r.status===429)throw new Error("429");
+      if(!r.ok)throw new Error("http");
+      return r.json();
+    }).then(function(j){
+      var d=(j.data||[]).map(function(g){
+        var im=(g.images&&(g.images.fixed_width_small||g.images.fixed_width))||{};
+        return {id:g.id,u:im.webp||im.url,w:+im.width||100,h:+im.height||100};
+      }).filter(function(x){return x.id&&x.u&&/^[A-Za-z0-9]{5,40}$/.test(x.id)});
+      gifCache[ck]={t:Date.now(),d:d};
+      return d;
+    });
+  }
+  function gifKey(e){if(e.key==="Escape"){e.stopPropagation();closeGifPanel()}}
+  function closeGifPanel(){
+    clearTimeout(gifTimer);gifReq++;
+    if(gifPanel){gifPanel.remove();gifPanel=null}
+    document.removeEventListener("keydown",gifKey,true);
+  }
+  function drawGifs(list,msg){
+    var g=gifPanel&&gifPanel.querySelector(".gifgrid");if(!g)return;
+    g.innerHTML=msg?'<div class="state">'+esc(msg)+'</div>':list.map(function(x){
+      return '<button type="button" data-gif="'+esc(x.id)+'" aria-label="GIF seç"><img loading="lazy" alt="GIF" src="'+esc(x.u)+'" width="'+x.w+'" height="'+x.h+'"></button>';
+    }).join("");
+  }
+  function gifSearch(q){
+    var my=++gifReq;drawGifs([],"Yükleniyor…");
+    gifFetch(q).then(function(d){if(my===gifReq)drawGifs(d,d.length?"":"Sonuç bulunamadı.")})
+      .catch(function(e){if(my===gifReq)drawGifs([],e&&e.message==="429"?"GIF servisi şu an yoğun, biraz sonra tekrar dene.":"GIF'ler yüklenemedi.")});
+  }
+  function openGifPanel(){
+    if(!auth||gifPanel)return;
+    var body=el("chatBody"),er=el("chatErr");if(!body)return;
+    if(!GIPHY){chatErr="GIF araması kurulmamış.";if(er)er.textContent=chatErr;return}
+    gifPanel=document.createElement("div");gifPanel.className="gifpanel";
+    gifPanel.innerHTML='<div class="gifbar"><input id="gifQ" type="search" placeholder="GIF ara…" autocomplete="off" aria-label="GIF ara"><button type="button" class="gifx" data-gifclose="1" aria-label="Kapat">&times;</button></div><div class="gifgrid"></div><div class="gifpow">Powered by GIPHY</div>';
+    body.appendChild(gifPanel);
+    gifPanel.addEventListener("click",function(e){
+      var b=e.target.closest("[data-gif]");
+      if(b){sendGif(b.dataset.gif);return}
+      if(e.target.closest("[data-gifclose]"))closeGifPanel();
+    });
+    gifPanel.querySelector("#gifQ").addEventListener("input",function(e){
+      clearTimeout(gifTimer);var q=e.target.value.trim();
+      gifTimer=setTimeout(function(){gifSearch(q)},600);
+    });
+    document.addEventListener("keydown",gifKey,true);
+    gifSearch("");
+    if(!matchMedia("(pointer:coarse)").matches)gifPanel.querySelector("#gifQ").focus();
+  }
+  async function sendGif(id){
+    if(!auth||chatBusy)return;
+    var er=el("chatErr"),inp=el("chatInput");
+    if(editMsg||predQuote){chatErr="Önce alıntıyı ya da düzenlemeyi bitir.";if(er)er.textContent=chatErr;closeGifPanel();return}
+    var text=inp?inp.value.trim():"";
+    chatBusy=true;
+    try{
+      var r=await rpc("send_chat_gif",{p_token:auth.token,p_body:text,p_gif:id,p_reply:replyTo?replyTo.id:null});
+      if(r.ok){if(inp)inp.value="";chatDraft="";chatErr="";replyTo=null;updateReplyPrev();closeGifPanel()}
+      else{
+        chatErr=ERR[r.error]||"GIF gönderilemedi.";
+        if(r.error==="not_logged_in"){auth=null;lsDel("tl_auth");chatFootKey="";render()}
+      }
+    }catch(e){chatErr="Bağlantı hatası, tekrar dene."}
+    chatBusy=false;
+    var e2=el("chatErr");if(e2)e2.textContent=chatErr;
+    await loadChat();updateChatUI(true);
+  }
   function openLightbox(src){
     var d=document.createElement("div");d.className="lightbox";d.innerHTML='<img alt="Görsel" src="'+esc(src)+'">';
     function close(){d.remove();document.removeEventListener("keydown",k,true)}
@@ -1307,7 +1398,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
       html+='<div class="mrow'+(mine?' mine':'')+'">'+(mine?rpBtn(m)+rxAddBtn(m):'')+'<div class="msg'+(mine?' mine':'')+'" data-mid="'+m.id+'"><span class="who">'+esc(m.nick)+'</span>'+
         (isAdmin()?' <button class="link" data-action="delChat" data-id="'+m.id+'" aria-label="Mesajı sil">sil</button>':'')+
         qtHtml(m)+pqHtml(m)+
-        (m.body?'<div>'+esc(m.body)+'</div>':'')+(m.image?'<img class="chatimg" loading="lazy" data-action="zoom" alt="Gönderilen fotoğraf" src="'+esc(BASE+"/storage/v1/object/public/chat-images/"+m.image)+'">':'')+
+        (m.body?'<div>'+esc(m.body)+'</div>':'')+(m.image?'<img class="chatimg" loading="lazy" data-action="zoom" alt="Gönderilen fotoğraf" src="'+esc(BASE+"/storage/v1/object/public/chat-images/"+m.image)+'">':'')+(m.gif?'<img class="chatimg chatgif" loading="lazy" data-action="zoom" data-full="https://media.giphy.com/media/'+esc(m.gif)+'/giphy.gif" alt="GIF" src="https://media.giphy.com/media/'+esc(m.gif)+'/200w.gif">':'')+
         '<div class="mfoot"><span class="t">'+fmtTime(ts)+(m.edited_at?' · düzenlendi':'')+'</span>'+(mine?tickHtml(m):'')+'</div>'+rxHtml(m)+'</div>'+(mine?'':rxAddBtn(m)+rpBtn(m))+'</div>';
     });
     return html+(lastDay?'</div>':'');
@@ -1629,7 +1720,8 @@ button.pill.pop{animation:rxpop .28s ease-out}
     else if(a==="pickImg"){var fi=el("chatFile");if(fi)fi.click()}
     else if(a==="pickCam"){if(window.matchMedia&&matchMedia("(pointer:coarse)").matches){var fc=el("chatCam");if(fc)fc.click()}else openWebcam()}
     else if(a==="clearImg")clearChatImg();
-    else if(a==="zoom")openLightbox(t.getAttribute("src"));
+    else if(a==="zoom")openLightbox(t.dataset.full||t.getAttribute("src"));
+    else if(a==="gifOpen")openGifPanel();
     else if(a==="rxwho")openRxSheet(+t.dataset.id);
     else if(a==="react")reactChat(+t.dataset.id,t.dataset.kind);
     else if(a==="rxpick"){var pm=+t.dataset.id;rxOpen=rxOpen===pm?0:pm;rxFull=0;updateChatUI(false)}
