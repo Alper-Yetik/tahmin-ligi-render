@@ -276,6 +276,25 @@ button.rxrowp:hover{background:var(--surface2)}
 @media (max-width:520px){body.chatlock{position:fixed;top:var(--lockTop,0);left:0;right:0;width:100%;overflow:hidden}}
 .chatpanel,.chathead,.chatfoot{overscroll-behavior:contain;touch-action:manipulation}
 .msg.gone{font-style:italic;opacity:.75}
+button.pill{position:relative;font-family:inherit;color:inherit;cursor:pointer;text-align:left;transition:transform .35s ease,filter .35s ease}
+button.pill.pressing{transform:scale(.94);filter:brightness(.92)}
+button.pill.pop{animation:rxpop .28s ease-out}
+.pill.hasrx{margin-bottom:9px}
+@media (pointer:coarse){button.pill{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}}
+.prx{position:absolute;right:6px;bottom:-10px;display:flex;gap:4px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:0 7px;font-size:.8rem;line-height:1.5;box-shadow:var(--shadow);pointer-events:none}
+.prx small{font-family:var(--display);font-size:.78rem;margin-left:1px}
+.psh{padding:14px 18px 6px}
+.predsheet .rxpick{margin:6px 14px}
+.predsheet .rxgrid{margin:6px 14px}
+.rxpick button.sel{background:var(--accent-soft)}
+.pshact{display:flex;gap:8px;justify-content:flex-end;padding:10px 14px}
+.pq{display:block;width:100%;text-align:left;font:inherit;color:inherit;background:rgba(0,0,0,.07);border:0;border-left:3px solid var(--gold);border-radius:8px;padding:4px 8px;margin:4px 0 2px;cursor:pointer;min-width:0}
+.pq b{display:block;font-family:var(--display);font-size:.88rem;letter-spacing:.03em}
+.pq span{display:block;font-size:.88rem;overflow-wrap:anywhere}
+.pq small{display:block;font-size:.76rem;opacity:.8}
+.msg.mine .pq{background:rgba(255,255,255,.25);border-left-color:#fff}
+.pq.gone{cursor:default;opacity:.7}
+.match.flash{animation:qflash 1.2s ease-out}
 .mfoot{display:flex;justify-content:flex-end;align-items:center;gap:3px;margin-top:2px;line-height:1}
 .tick{background:none;border:0;padding:0 2px;font:inherit;font-size:.78rem;font-weight:800;letter-spacing:-.18em;color:inherit;opacity:.6;cursor:pointer}
 .tick.some{opacity:.95}
@@ -446,7 +465,7 @@ button.rxrowp:hover{background:var(--surface2)}
 
   var auth=null, adminPass=null, loading=true, loadError="";
   var BOT="uclu_tahmin_bot", tgLinked={};
-  var matches=[], preds={}, players={}, lastSig="";
+  var matches=[], preds={}, players={}, lastSig="", prx={};
   var stand={}, standAt=0, standBusy=false, standSig="", euro="ucl";
   var tab="matches", filter="all", sub="up", drafts={}, flash={}, pendingDelete=null;
   var el=function(id){return document.getElementById(id)};
@@ -542,7 +561,8 @@ button.rxrowp:hover{background:var(--surface2)}
         sb("/rest/v1/matches?select=*&order=kickoff.asc"),
         sb("/rest/v1/predictions?select=*"),
         sb("/rest/v1/players_public?select=*"),
-        sb("/rest/v1/players_telegram?select=player_id").catch(function(){return []})
+        sb("/rest/v1/players_telegram?select=player_id").catch(function(){return []}),
+        sb("/rest/v1/prediction_reactions_public?select=*").catch(function(){return []})
       ]);
       var sig=JSON.stringify(r);
       loadError="";
@@ -552,6 +572,7 @@ button.rxrowp:hover{background:var(--surface2)}
         preds={};r[1].forEach(function(x){preds[x.match_id+"_"+x.player_id]={m:x.match_id,u:x.player_id,h:x.h,a:x.a}});
         players={};r[2].forEach(function(x){players[x.id]=x.nick});
         tgLinked={};r[3].forEach(function(x){tgLinked[x.player_id]=1});
+        prx={};(r[4]||[]).forEach(function(x){(prx[x.match_id+"_"+x.target_id]||(prx[x.match_id+"_"+x.target_id]=[])).push({rid:x.reactor_id,nick:x.nick,kind:x.kind})});
         loading=false;render();
       }
     }catch(e){
@@ -576,6 +597,7 @@ button.rxrowp:hover{background:var(--surface2)}
     else if(tab==="admin"&&isAdmin())v.innerHTML=adminHtml();
     else v.innerHTML=matchesHtml();
     renderChatFoot();updateChatUI(false);
+    if(predSheetEl)drawPredSheet();
     if(aid){var n=document.getElementById(aid);if(n&&n!==document.activeElement){n.focus();try{if(s0!=null)n.setSelectionRange(s0,s0)}catch(e){}}}
   }
   function renderHead(){
@@ -662,13 +684,14 @@ button.rxrowp:hover{background:var(--surface2)}
     if(ps.length){
       others='<div class="others">'+ps.sort(function(a,b){return (score(b,m)||0)-(score(a,m)||0)||nameOf(a.u).localeCompare(nameOf(b.u),"tr")}).map(function(p){
         var pt=score(p,m);
-        return '<span class="pill">'+esc(nameOf(p.u))+(auth&&p.u===auth.id?' (sen)':'')+' <b>'+p.h+'-'+p.a+'</b>'+(pt!=null?' <span class="p">+'+pt+'</span>':'')+'</span>';
+        var rxc=prxChips(m.id,p.u);
+        return '<button type="button" class="pill'+(rxc?' hasrx':'')+'" data-action="predopen" data-m="'+esc(m.id)+'" data-u="'+esc(p.u)+'" aria-label="'+esc(nameOf(p.u))+' tahmini, tepkiler ve yorum">'+esc(nameOf(p.u))+(auth&&p.u===auth.id?' (sen)':'')+' <b>'+p.h+'-'+p.a+'</b>'+(pt!=null?' <span class="p">+'+pt+'</span>':'')+rxc+'</button>';
       }).join("")+'</div>';
     }
     var closing=(!fin&&!closed(m))?' · Tahmin kapanışı: '+fmtDate(m.kickoff-LOCK_MS):'';
     var showCards=fin||lv||pv;
     var badge=lv?'<span class="livebadge">● '+esc(liveLabel(m))+'</span> · ':'';
-    return '<article class="match"><div class="meta"><span class="comp '+compCls(m.comp)+'">'+esc(m.comp)+'</span><span>'+badge+fmtDate(m.kickoff)+esc(closing)+'</span></div>'+
+    return '<article class="match" data-match="'+esc(m.id)+'"><div class="meta"><span class="comp '+compCls(m.comp)+'">'+esc(m.comp)+'</span><span>'+badge+fmtDate(m.kickoff)+esc(closing)+'</span></div>'+
       '<div class="board">'+teamHtml(m.home,"",showCards?cardsHtml(m.hy,m.hr):undefined)+center+teamHtml(m.away,"away",showCards?cardsHtml(m.ay,m.ar):undefined)+'</div>'+(showCards?evsHtml(m):"")+foot+others+'</article>';
   }
 
@@ -820,11 +843,17 @@ button.rxrowp:hover{background:var(--surface2)}
     return '<button type="button" class="qt" data-action="goto" data-id="'+m.reply_to+'" aria-label="Yanıtlanan mesaja git"><b>'+esc(m.reply_nick)+'</b><span>'+esc(m.reply_deleted?"🚫 Bu mesaj silindi":snipText(m.reply_body,m.reply_image))+'</span></button>';
   }
   /* Düzenleme: kendi mesajın, gönderdikten sonra 15 dakika içinde. Yazı kutusu mesajın metniyle dolar. */
-  var editMsg=null;
+  var editMsg=null, predQuote=null;
+  function pqHtml(m){
+    if(!m.pred_match)return "";
+    if(m.pred_h==null)return '<div class="pq gone"><span>Alıntılanan tahmin artık yok</span></div>';
+    var res=(typeof m.pred_hs==="number"&&typeof m.pred_as==="number")?score({h:m.pred_h,a:m.pred_a},{hs:m.pred_hs,as:m.pred_as}):null;
+    return '<button type="button" class="pq" data-action="gotoMatch" data-m="'+esc(m.pred_match)+'" aria-label="Maça git"><b>'+esc(m.pred_nick||"?")+' · tahmin</b><span>'+esc(m.pred_home)+' '+m.pred_h+'-'+m.pred_a+' '+esc(m.pred_away)+'</span>'+(res!=null?'<small>MS '+m.pred_hs+'-'+m.pred_as+' · +'+res+' puan</small>':'')+'</button>';
+  }
   function canEdit(m){return auth&&m.player_id===auth.id&&!m.deleted&&Date.now()-Date.parse(m.created_at)<14*60000}
   function startEdit(id){
     var m=chat.find(function(x){return x.id===id});if(!m||!canEdit(m))return;
-    editMsg={id:m.id,text:m.body||"📷 Fotoğraf"};replyTo=null;clearChatImg();
+    editMsg={id:m.id,text:m.body||"📷 Fotoğraf"};replyTo=null;predQuote=null;clearChatImg();
     var inp=el("chatInput");if(inp){inp.value=m.body||"";chatDraft=inp.value}
     rxOpen=0;rxFull=0;updateChatUI(false);updateReplyPrev();
     if(inp)inp.focus({preventScroll:true});
@@ -846,7 +875,7 @@ button.rxrowp:hover{background:var(--surface2)}
   }
   function updateReplyPrev(){
     var p=el("chatReply");if(!p)return;
-    var src=editMsg?{nick:"Mesajı düzenle",text:editMsg.text}:replyTo;
+    var src=editMsg?{nick:"Mesajı düzenle",text:editMsg.text}:predQuote?{nick:predQuote.nick,text:predQuote.text}:replyTo;
     if(!src){p.hidden=true;p.innerHTML="";return}
     p.hidden=false;
     p.innerHTML='<div><b>'+esc(src.nick)+'</b><span>'+esc(src.text)+'</span></div><button class="link" type="button" data-action="clearReply" aria-label="İptal et">&times;</button>';
@@ -902,7 +931,7 @@ button.rxrowp:hover{background:var(--surface2)}
   }
   function setReply(id){
     var m=chat.find(function(x){return x.id===id});if(!m||!auth)return;
-    replyTo={id:m.id,nick:m.nick,text:snipText(m.body,m.image)};
+    replyTo={id:m.id,nick:m.nick,text:snipText(m.body,m.image)};predQuote=null;
     rxOpen=0;rxFull=0;updateChatUI(false);updateReplyPrev();
     var inp=el("chatInput");if(inp)inp.focus({preventScroll:true});
   }
@@ -982,6 +1011,103 @@ button.rxrowp:hover{background:var(--surface2)}
       }
     }catch(e){reactions=old;rebuildRx();updateChatUI(false)}
     await loadChat();
+  }
+  /* Tahmin penceresi: bir üyenin tahminine tepki bırak, kimin ne bıraktığını gör, sohbette alıntılayıp yorum yaz. */
+  var predSheetEl=null, predSel=null;
+  function prxChips(mid,uid){
+    var list=prx[mid+"_"+uid]||[];if(!list.length)return "";
+    var g={},o=[];list.forEach(function(r){if(!g[r.kind]){g[r.kind]=0;o.push(r.kind)}g[r.kind]++});
+    o.sort(function(a,b){return g[b]-g[a]});
+    return '<span class="prx">'+o.map(function(k){return esc(k)+(g[k]>1?'<small>'+g[k]+'</small>':'')}).join(" ")+'</span>';
+  }
+  function predKey(e){if(e.key==="Escape"){e.stopPropagation();closePredSheet()}}
+  function closePredSheet(){
+    if(predSheetEl){predSheetEl.remove();predSheetEl=null}
+    predSel=null;document.removeEventListener("keydown",predKey,true);
+  }
+  var predOpenAt=0;
+  function openPredSheet(mid,uid){
+    predSel={m:mid,u:uid,full:false};predOpenAt=Date.now();
+    if(!predSheetEl){
+      predSheetEl=document.createElement("div");predSheetEl.className="rxsheetbg";
+      predSheetEl.addEventListener("click",predSheetClick);
+      document.body.appendChild(predSheetEl);
+      document.addEventListener("keydown",predKey,true);
+    }
+    drawPredSheet();
+  }
+  function drawPredSheet(){
+    if(!predSheetEl||!predSel)return;
+    var mt=matches.find(function(x){return x.id===predSel.m}), p=predFor(predSel.m,predSel.u);
+    if(!mt||!p){closePredSheet();return}
+    var list=prx[predSel.m+"_"+predSel.u]||[];
+    var mine=auth&&list.find(function(r){return r.rid===auth.id});
+    var pt=score(p,mt);
+    var h='<div class="rxsheet predsheet" role="dialog" aria-label="Tahmin"><div class="psh"><b>'+esc(nameOf(p.u))+'</b> · '+esc(mt.home)+' - '+esc(mt.away)+
+      '<div class="state">Tahmin: <b>'+p.h+'-'+p.a+'</b>'+(pt!=null?' · +'+pt+' puan'+(isLive(mt)?' şimdilik':''):'')+'</div></div>';
+    if(auth){
+      h+='<div class="rxpick">'+RX_QUICK.map(function(e){return '<button type="button" class="'+(mine&&mine.kind===e?'sel':'')+'" data-pk="'+esc(e)+'" aria-label="Tepki '+esc(e)+'">'+esc(e)+'</button>'}).join("")+
+        '<button type="button" class="rxmore" data-pcomment="1" aria-label="Sohbette alıntıla">↩</button>'+
+        '<button type="button" class="rxmore" data-pmore="1" aria-label="Tüm emojiler" aria-expanded="'+!!predSel.full+'">'+(predSel.full?'−':'+')+'</button></div>';
+      if(predSel.full)h+='<div class="rxgrid">'+RX_ALL.map(function(c){
+        return '<div class="rxcat">'+esc(c[0])+'</div><div class="rxrow">'+c[1].split(" ").map(function(e){return '<button type="button" data-pk="'+esc(e)+'" aria-label="Tepki '+esc(e)+'">'+esc(e)+'</button>'}).join("")+'</div>';
+      }).join("")+'</div>';
+    }
+    h+='<div class="rxlist">'+(list.length?list.map(function(r){
+      var me=auth&&r.rid===auth.id;
+      return '<div class="rxrowp'+(me?' me':'')+'"><span class="rxn">'+esc(me?"Sen":r.nick)+'</span><span class="rxe">'+esc(r.kind)+'</span></div>';
+    }).join(""):'<div class="rxrowp"><span class="rxn"><small>Henüz tepki yok'+(auth?'':' · tepki bırakmak için giriş yap')+'</small></span></div>')+'</div>'+
+      '<div class="pshact"><button class="btn ghost" type="button" data-pclose="1">Kapat</button></div></div>';
+    predSheetEl.innerHTML=h;
+  }
+  function predSheetClick(e){
+    var t=e.target;if(!predSel||Date.now()-predOpenAt<700)return; /* basılı tutup bırakınca gelen tıklama pencereyi kapatmasın */
+    var pk=t.closest("[data-pk]");
+    if(pk){reactPred(predSel.m,predSel.u,pk.dataset.pk);return}
+    if(t.closest("[data-pmore]")){predSel.full=!predSel.full;drawPredSheet();return}
+    if(t.closest("[data-pcomment]")){var m=predSel.m,u=predSel.u;closePredSheet();commentPred(m,u);return}
+    if(t.closest("[data-pclose]")||!t.closest(".rxsheet"))closePredSheet();
+  }
+  async function reactPred(mid,uid,kind){
+    if(!auth)return;
+    var key=mid+"_"+uid, old=(prx[key]||[]).slice();
+    var mine=old.find(function(r){return r.rid===auth.id});
+    var next=old.filter(function(r){return r.rid!==auth.id});
+    if(!mine||mine.kind!==kind)next.push({rid:auth.id,nick:auth.nick,kind:kind});
+    prx[key]=next;if(predSel)predSel.full=false;
+    drawPredSheet();render();
+    try{
+      var r=await rpc("react_prediction",{p_token:auth.token,p_match:mid,p_target:uid,p_kind:kind});
+      if(!r.ok){
+        prx[key]=old;drawPredSheet();render();
+        if(r.error==="not_logged_in"){auth=null;lsDel("tl_auth");chatFootKey="";render()}
+      }
+    }catch(e){prx[key]=old;drawPredSheet();render()}
+    await load();
+  }
+  /* "Sohbette yorum yaz": sohbeti açar, yazı kutusunun üstüne alıntılanan tahmini koyar. */
+  function commentPred(mid,uid){
+    var p=predFor(mid,uid), mt=matches.find(function(x){return x.id===mid});
+    if(!auth||!p||!mt)return;
+    predQuote={m:mid,u:uid,nick:"Tahmin · "+nameOf(uid),text:mt.home+" - "+mt.away+" · "+p.h+"-"+p.a};
+    replyTo=null;cancelEdit();clearChatImg();
+    if(!chatOpen)setChatOpen(true);
+    renderChatFoot();updateReplyPrev();
+    var inp=el("chatInput");if(inp)inp.focus({preventScroll:true});
+  }
+  /* Sohbetteki tahmin alıntısına basınca ilgili maç kartına gider. */
+  function gotoMatch(mid){
+    var mt=matches.find(function(x){return x.id===mid});if(!mt)return;
+    if(chatOpen)setChatOpen(false);
+    tab="matches";filter="all";sub=(finished(mt)||(!isLive(mt)&&started(mt)))?"done":"up";
+    render();
+    setTimeout(function(){
+      var n=Array.prototype.find.call(document.querySelectorAll("article.match"),function(a){return a.dataset.match===mid});
+      if(!n)return;
+      n.scrollIntoView({block:"center",behavior:"smooth"});
+      n.classList.remove("flash");void n.offsetWidth;n.classList.add("flash");
+      setTimeout(function(){n.classList.remove("flash")},1300);
+    },60);
   }
   var chat=[], chatDraft="", chatSeen=+(lsGet("tl_chat_seen")||0), chatBusy=false, chatErr="", chatTick=0, chatOpen=false, chatFootKey="", chatPend=null, chatStickUntil=0;
   var SEND_SVG='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4l17.4-8.1a.4.4 0 0 0 0-.7L3.4 3.6a.4.4 0 0 0-.56.5l2.3 6.6 8.6 1.3-8.6 1.3-2.3 6.6a.4.4 0 0 0 .56.5z"/></svg>';
@@ -1124,7 +1250,7 @@ button.rxrowp:hover{background:var(--surface2)}
     if(!f)return;
     var er=el("chatErr");
     if(f.type&&!/^image\//.test(f.type)){chatErr="Sadece fotoğraf eklenebilir.";if(er)er.textContent=chatErr;return}
-    try{var b=await shrinkImage(f);clearChatImg();chatPend={blob:b,url:URL.createObjectURL(b)};chatErr="";if(er)er.textContent="";updateChatPrev()}
+    try{var b=await shrinkImage(f);clearChatImg();chatPend={blob:b,url:URL.createObjectURL(b)};chatErr="";if(er)er.textContent="";predQuote=null;updateReplyPrev();updateChatPrev()}
     catch(e){chatErr="Fotoğraf okunamadı, başka bir tane dene.";if(er)er.textContent=chatErr}
   }
   function chatListHtml(){
@@ -1148,7 +1274,7 @@ button.rxrowp:hover{background:var(--surface2)}
       }
       html+='<div class="mrow'+(mine?' mine':'')+'">'+(mine?rpBtn(m)+rxAddBtn(m):'')+'<div class="msg'+(mine?' mine':'')+'" data-mid="'+m.id+'"><span class="who">'+esc(m.nick)+'</span>'+
         (isAdmin()?' <button class="link" data-action="delChat" data-id="'+m.id+'" aria-label="Mesajı sil">sil</button>':'')+
-        qtHtml(m)+
+        qtHtml(m)+pqHtml(m)+
         (m.body?'<div>'+esc(m.body)+'</div>':'')+(m.image?'<img class="chatimg" loading="lazy" data-action="zoom" alt="Gönderilen fotoğraf" src="'+esc(BASE+"/storage/v1/object/public/chat-images/"+m.image)+'">':'')+
         '<div class="mfoot"><span class="t">'+fmtTime(ts)+(m.edited_at?' · düzenlendi':'')+'</span>'+(mine?tickHtml(m):'')+'</div>'+rxHtml(m)+'</div>'+(mine?'':rxAddBtn(m)+rpBtn(m))+'</div>';
     });
@@ -1208,8 +1334,12 @@ button.rxrowp:hover{background:var(--surface2)}
       if(chatPend){
         var up=await uploadChatImg(chatPend.blob);
         r=up.ok?await rpc("send_chat_image",{p_token:auth.token,p_body:text,p_image:up.name,p_reply:replyTo?replyTo.id:null}):up;
-      }else r=await rpc("send_chat",{p_token:auth.token,p_body:text,p_reply:replyTo?replyTo.id:null});
-      if(r.ok){inp.value="";chatDraft="";chatErr="";clearChatImg();replyTo=null;updateReplyPrev()}
+      }else{
+        var sargs={p_token:auth.token,p_body:text,p_reply:replyTo?replyTo.id:null};
+        if(predQuote){sargs.p_pred_match=predQuote.m;sargs.p_pred_player=predQuote.u}
+        r=await rpc("send_chat",sargs);
+      }
+      if(r.ok){inp.value="";chatDraft="";chatErr="";clearChatImg();replyTo=null;predQuote=null;updateReplyPrev()}
       else{
         chatErr=ERR[r.error]||"Gönderilemedi.";
         if(r.error==="not_logged_in"){auth=null;lsDel("tl_auth");chatFootKey="";render()}
@@ -1390,6 +1520,33 @@ button.rxrowp:hover{background:var(--surface2)}
   document.addEventListener("contextmenu",function(e){
     if(auth&&e.target.closest&&e.target.closest(".msg[data-mid]")&&matchMedia("(pointer:coarse)").matches)e.preventDefault();
   });
+  /* Telefonda bir tahmine basılı tutunca (sohbetteki mesajlar gibi) tepki ve alıntı penceresi açılır. Bilgisayarda tıklamak yeter. */
+  var ppTimer=0,ppPress=0,ppEl=null,ppX=0,ppY=0;
+  function ppCancel(){
+    if(ppTimer){clearTimeout(ppTimer);ppTimer=0}
+    if(ppPress){clearTimeout(ppPress);ppPress=0}
+    if(ppEl){ppEl.classList.remove("pressing");ppEl=null}
+  }
+  document.addEventListener("touchstart",function(e){
+    ppCancel();
+    if(e.touches.length!==1)return;
+    var pill=e.target.closest&&e.target.closest('button.pill[data-action="predopen"]');
+    if(!pill)return;
+    ppX=e.touches[0].clientX;ppY=e.touches[0].clientY;
+    ppPress=setTimeout(function(){ppPress=0;pill.classList.add("pressing");ppEl=pill},150);
+    ppTimer=setTimeout(function(){
+      ppTimer=0;pill.classList.remove("pressing");ppEl=null;
+      pill.classList.add("pop");setTimeout(function(){pill.classList.remove("pop")},400);
+      openPredSheet(pill.dataset.m,pill.dataset.u);haptic();
+    },450);
+  },{passive:true});
+  document.addEventListener("touchmove",function(e){
+    if((ppTimer||ppPress)&&e.touches[0]&&(Math.abs(e.touches[0].clientX-ppX)>10||Math.abs(e.touches[0].clientY-ppY)>10))ppCancel();
+  },{passive:true});
+  ["touchend","touchcancel","scroll"].forEach(function(n){document.addEventListener(n,ppCancel,{passive:true,capture:true})});
+  document.addEventListener("contextmenu",function(e){
+    if(e.target.closest&&e.target.closest('button.pill[data-action="predopen"]')&&matchMedia("(pointer:coarse)").matches)e.preventDefault();
+  });
   /* Telefonda mesajı sağa kaydırınca yanıtlanır (WhatsApp gibi). */
   var swEl=null,swX=0,swY=0,swDx=0,swOn=false;
   function swReset(){if(swEl){swEl.style.transition="";swEl.style.transform=""}swEl=null;swOn=false;swDx=0}
@@ -1439,7 +1596,9 @@ button.rxrowp:hover{background:var(--surface2)}
     else if(a==="rxpick"){var pm=+t.dataset.id;rxOpen=rxOpen===pm?0:pm;rxFull=0;updateChatUI(false)}
     else if(a==="rxmore"){var fm=+t.dataset.id;rxFull=rxFull===fm?0:fm;updateChatUI(false)}
     else if(a==="reply")setReply(+t.dataset.id);
-    else if(a==="clearReply"){if(editMsg)cancelEdit();replyTo=null;updateReplyPrev()}
+    else if(a==="clearReply"){if(editMsg)cancelEdit();replyTo=null;predQuote=null;updateReplyPrev()}
+    else if(a==="predopen"){if(!matchMedia("(pointer:coarse)").matches)openPredSheet(t.dataset.m,t.dataset.u)}
+    else if(a==="gotoMatch")gotoMatch(t.dataset.m);
     else if(a==="editMsg")startEdit(+t.dataset.id);
     else if(a==="delMsg")delMsg(+t.dataset.id);
     else if(a==="goto")gotoMsg(+t.dataset.id);
