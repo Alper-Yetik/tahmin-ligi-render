@@ -238,6 +238,19 @@ button.rx{cursor:pointer}
 .rxrow{display:flex;flex-wrap:wrap;gap:1px}
 .rxrow button{background:none;border:0;font-size:1.35rem;width:36px;height:34px;padding:0;border-radius:8px;line-height:1;cursor:pointer}
 .rxrow button:hover{background:var(--surface2)}
+.rxsheetbg{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center}
+.rxsheet{width:min(420px,100%);max-height:70dvh;display:flex;flex-direction:column;background:var(--surface);color:var(--ink);border-radius:18px 18px 0 0;box-shadow:var(--shadow-lg);padding-bottom:env(safe-area-inset-bottom)}
+.rxtabs{display:flex;gap:4px;overflow-x:auto;padding:10px 10px 0;border-bottom:1px solid var(--line);flex:none}
+.rxtabs button{background:none;border:0;border-bottom:3px solid transparent;color:inherit;font-size:1rem;padding:6px 10px 8px;cursor:pointer;white-space:nowrap;opacity:.7}
+.rxtabs button.on{border-bottom-color:var(--accent);opacity:1}
+.rxtabs b{font-family:var(--display);font-size:.95rem}
+.rxlist{overflow-y:auto;padding:4px 0 10px}
+.rxrowp{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:10px 18px;background:none;border:0;color:inherit;font:inherit;text-align:left}
+button.rxrowp{cursor:pointer}
+button.rxrowp:hover{background:var(--surface2)}
+.rxn{display:flex;flex-direction:column;font-weight:600}
+.rxn small{font-weight:400;font-size:.75rem;opacity:.65}
+.rxe{font-size:1.5rem;line-height:1}
 .msg.mine .rx{background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.35);color:inherit}
 .msg.mine .rx.mine{background:rgba(255,255,255,.42);border-color:#fff}
 .msg.mine .rxadd{border-color:rgba(255,255,255,.55)}
@@ -780,9 +793,7 @@ button.rx{cursor:pointer}
       var g=groups[k], e=esc(k);
       var names=g.map(function(r){return r.nick}).join(", ");
       var mineR=auth&&g.some(function(r){return r.player_id===auth.id});
-      h+=auth?
-        '<button type="button" class="rx'+(mineR?' mine':'')+'" data-action="react" data-id="'+m.id+'" data-kind="'+e+'" title="'+esc(names)+'" aria-label="'+esc(k+' '+g.length+': '+names)+'">'+e+'<b>'+g.length+'</b></button>':
-        '<span class="rx" title="'+esc(names)+'">'+e+'<b>'+g.length+'</b></span>';
+      h+='<button type="button" class="rx'+(mineR?' mine':'')+'" data-action="rxwho" data-id="'+m.id+'" title="'+esc(names)+'" aria-label="'+esc(k+' '+g.length+': '+names)+'">'+e+'<b>'+g.length+'</b></button>';
     });
     if(auth)h+='<button type="button" class="rxadd" data-action="rxpick" data-id="'+m.id+'" aria-label="Tepki bırak" aria-expanded="'+(rxOpen===m.id)+'">☺</button>';
     if(!h)return "";
@@ -795,6 +806,36 @@ button.rx{cursor:pointer}
       }).join("")+'</div>';
     }
     return '<div class="rxbar">'+h+'</div>'+pick;
+  }
+  /* Tepki listesi (WhatsApp gibi): kutucuğa basınca kimin hangi emojiyi bıraktığı çıkar; kendi tepkine basınca kalkar. */
+  function openRxSheet(mid){
+    var d=document.createElement("div"),cur="";d.className="rxsheetbg";
+    function close(){d.remove();document.removeEventListener("keydown",k,true)}
+    function k(e){if(e.key==="Escape"){e.stopPropagation();close()}}
+    function draw(){
+      var list=rxByMsg[mid]||[];
+      if(!list.length){close();return}
+      var kinds=[];list.forEach(function(r){if(kinds.indexOf(r.kind)<0)kinds.push(r.kind)});
+      kinds.sort(function(a,b){return list.filter(function(r){return r.kind===b}).length-list.filter(function(r){return r.kind===a}).length});
+      if(cur&&kinds.indexOf(cur)<0)cur="";
+      var shown=cur?list.filter(function(r){return r.kind===cur}):list;
+      var h='<div class="rxsheet" role="dialog" aria-label="Tepkiler"><div class="rxtabs">'+
+        '<button type="button" class="'+(cur?'':'on')+'" data-k="">Tümü <b>'+list.length+'</b></button>'+
+        kinds.map(function(x){return '<button type="button" class="'+(cur===x?'on':'')+'" data-k="'+esc(x)+'">'+esc(x)+' <b>'+list.filter(function(r){return r.kind===x}).length+'</b></button>'}).join("")+
+        '</div><div class="rxlist">'+shown.map(function(r){
+          var me=auth&&r.player_id===auth.id;
+          return '<'+(me?'button type="button" data-me="1"':'div')+' class="rxrowp'+(me?' me':'')+'"><span class="rxn">'+esc(me?"Sen":r.nick)+(me?'<small>Kaldırmak için dokun</small>':'')+'</span><span class="rxe">'+esc(r.kind)+'</span></'+(me?'button':'div')+'>';
+        }).join("")+'</div></div>';
+      d.innerHTML=h;
+    }
+    d.addEventListener("click",function(e){
+      var tb=e.target.closest(".rxtabs button");
+      if(tb){cur=tb.dataset.k;draw();return}
+      if(e.target.closest("[data-me]")){var mine=(rxByMsg[mid]||[]).find(function(r){return auth&&r.player_id===auth.id});close();if(mine)reactChat(mid,mine.kind);return}
+      if(!e.target.closest(".rxsheet"))close();
+    });
+    draw();if(!d.firstChild)return;
+    document.addEventListener("keydown",k,true);document.body.appendChild(d);
   }
   async function reactChat(mid,kind){
     if(!auth)return;
@@ -1152,6 +1193,7 @@ button.rx{cursor:pointer}
     else if(a==="pickCam"){if(window.matchMedia&&matchMedia("(pointer:coarse)").matches){var fc=el("chatCam");if(fc)fc.click()}else openWebcam()}
     else if(a==="clearImg")clearChatImg();
     else if(a==="zoom")openLightbox(t.getAttribute("src"));
+    else if(a==="rxwho")openRxSheet(+t.dataset.id);
     else if(a==="react")reactChat(+t.dataset.id,t.dataset.kind);
     else if(a==="rxpick"){var pm=+t.dataset.id;rxOpen=rxOpen===pm?0:pm;rxFull=0;updateChatUI(false)}
     else if(a==="rxmore"){var fm=+t.dataset.id;rxFull=rxFull===fm?0:fm;updateChatUI(false)}
