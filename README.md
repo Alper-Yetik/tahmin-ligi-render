@@ -72,7 +72,7 @@ Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspb
 ### 1. Supabase
 
 1. supabase.com'da proje oluştur.
-2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `events.sql`, `standings.sql`, `chat.sql`, **`chat_images.sql`** (sohbete fotoğraf ekleme), sonra **`members.sql`** (eski şifresiz giriş fonksiyonlarını siler ve üyelik sistemini kurar), en son **`telegram_link.sql`** (Telegram bağlantısını üyelik oturumuna bağlar).
+2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `events.sql`, `standings.sql`, `chat.sql`, **`chat_images.sql`** (sohbete fotoğraf ekleme), sonra **`members.sql`** (eski şifresiz giriş fonksiyonlarını siler ve üyelik sistemini kurar), sonra **`telegram_link.sql`** (Telegram bağlantısını üyelik oturumuna bağlar), en son **`chat_reactions.sql`** (sohbet tepkileri; sohbet fotoğrafları için `chat_images.sql` de çalıştırılmış olmalı).
 3. Yönetici şifresini belirle (`BURAYA_SIFRE` yerine kendi şifren):
 
 ```sql
@@ -124,6 +124,8 @@ python3 sync_fixtures.py --dry-run     # önce dene, hiçbir şey eklemez
 Sitedeki **Sohbet** sekmesinde oyuncular adlarıyla mesaj yazar (en fazla 300 karakter). Sayfa açıkken 4 saniyede bir yenilenir, başka sekmedeyken okunmamış mesaj sayısı sekmenin yanında görünür. Bir oyuncu 2 saniyede birden fazla, tüm sohbet dakikada 40'tan fazla mesaj yazamaz. Son 500 mesaj tutulur, eskileri otomatik silinir. Yönetici girişi yapınca her mesajın yanında "sil" bağlantısı çıkar.
 
 Mesajlar gün gün gruplanır: günlerin arasında "Bugün", "Dün", "9 Eki Cum" gibi (Türkiye saatine göre) ayraç durur, her mesajın yanında saati yazar. Sohbeti kaydırırken o anki günün etiketi üstte yapışık kalır, yeni güne gelince eski günün etiketini yukarı iterek yerine geçer. Kaydırmayı bırakınca (yaklaşık 1,3 saniye sonra) sadece tepeye yapışmış etiket kaybolur, mesajların arasındaki ayraçlar yerinde kalır (WhatsApp gibi).
+
+**Tepkiler (WhatsApp gibi):** Giriş yapmış üye bir mesajın altındaki **☺** düğmesiyle 👍 ❤️ 😂 😮 😢 🔥 ⚽ emojilerinden birini bırakır. Bir üye bir mesaja en fazla bir tepki bırakır: aynı emojiye tekrar basınca tepki kalkar, başka emojiye basınca değişir. Mesajın altında emoji kutucukları ve sayıları görünür, kutucuğun üstüne gelince (ya da uzun basınca) kimlerin bıraktığı yazar. Misafirler tepkileri görür ama bırakamaz. Üye başına dakikada en fazla 30 tepki işlemi. Kurulum: `chat_reactions.sql` (tepki kodları `like, love, laugh, wow, sad, fire, ball` olarak saklanır, emojiler siteye aittir). Mesaj silinince tepkileri de silinir.
 
 Mesaj yazmak için giriş yapmak gerekir, mesaj üyenin kendi adıyla görünür. Tablo (`chat_messages`) tarayıcıdan doğrudan yazılamaz, sadece oturum anahtarı isteyen `send_chat` fonksiyonuyla yazılır. Kurulum: `chat.sql`, `members.sql`.
 
