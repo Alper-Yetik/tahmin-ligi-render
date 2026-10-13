@@ -72,7 +72,7 @@ Tarayıcı (index.html)  ──►  Supabase (Postgres + REST)  ◄──  Raspb
 ### 1. Supabase
 
 1. supabase.com'da proje oluştur.
-2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `events.sql`, `standings.sql`, `chat.sql`, **`chat_images.sql`** (sohbete fotoğraf ekleme), sonra **`members.sql`** (eski şifresiz giriş fonksiyonlarını siler ve üyelik sistemini kurar), sonra **`telegram_link.sql`** (Telegram bağlantısını üyelik oturumuna bağlar), en son **`chat_reactions.sql`** (sohbet tepkileri; sohbet fotoğrafları için `chat_images.sql` de çalıştırılmış olmalı).
+2. SQL Editor'de sırayla çalıştır: `schema.sql`, `seed.sql`, `bot.sql`, `telegram.sql`, `live.sql`, `extra.sql`, `events.sql`, `standings.sql`, `chat.sql`, **`chat_images.sql`** (sohbete fotoğraf ekleme), sonra **`members.sql`** (eski şifresiz giriş fonksiyonlarını siler ve üyelik sistemini kurar), sonra **`telegram_link.sql`** (Telegram bağlantısını üyelik oturumuna bağlar), sonra **`chat_reactions.sql`** ve **`chat_reactions_any.sql`** (sohbet tepkileri, ikincisi her emojiye izin verir; sohbet fotoğrafları için `chat_images.sql` de çalıştırılmış olmalı).
 3. Yönetici şifresini belirle (`BURAYA_SIFRE` yerine kendi şifren):
 
 ```sql
@@ -125,7 +125,7 @@ Sitedeki **Sohbet** sekmesinde oyuncular adlarıyla mesaj yazar (en fazla 300 ka
 
 Mesajlar gün gün gruplanır: günlerin arasında "Bugün", "Dün", "9 Eki Cum" gibi (Türkiye saatine göre) ayraç durur, her mesajın yanında saati yazar. Sohbeti kaydırırken o anki günün etiketi üstte yapışık kalır, yeni güne gelince eski günün etiketini yukarı iterek yerine geçer. Kaydırmayı bırakınca (yaklaşık 1,3 saniye sonra) sadece tepeye yapışmış etiket kaybolur, mesajların arasındaki ayraçlar yerinde kalır (WhatsApp gibi).
 
-**Tepkiler (WhatsApp gibi):** Giriş yapmış üye bir mesajın altındaki **☺** düğmesiyle 👍 ❤️ 😂 😮 😢 🔥 ⚽ emojilerinden birini bırakır. Bir üye bir mesaja en fazla bir tepki bırakır: aynı emojiye tekrar basınca tepki kalkar, başka emojiye basınca değişir. Mesajın altında emoji kutucukları ve sayıları görünür, kutucuğun üstüne gelince (ya da uzun basınca) kimlerin bıraktığı yazar. Misafirler tepkileri görür ama bırakamaz. Üye başına dakikada en fazla 30 tepki işlemi. Kurulum: `chat_reactions.sql` (tepki kodları `like, love, laugh, wow, sad, fire, ball` olarak saklanır, emojiler siteye aittir). Mesaj silinince tepkileri de silinir.
+**Tepkiler (WhatsApp gibi):** Giriş yapmış üye bir mesajın altındaki **☺** düğmesiyle 👍 ❤️ 😂 😮 😢 🔥 ⚽ hızlı emojilerinden birini, ya da yanındaki **+** ile açılan listeden herhangi bir emojiyi bırakır. Bir üye bir mesaja en fazla bir tepki bırakır: aynı emojiye tekrar basınca tepki kalkar, başka emojiye basınca değişir. Mesajın altında emoji kutucukları ve sayıları görünür, kutucuğun üstüne gelince (ya da uzun basınca) kimlerin bıraktığı yazar. Misafirler tepkileri görür ama bırakamaz. Üye başına dakikada en fazla 30 tepki işlemi. Kurulum: `chat_reactions.sql`, ardından `chat_reactions_any.sql` (tepki olarak emojinin kendisi saklanır; harf, rakam ve HTML işaretleri reddedilir). Mesaj silinince tepkileri de silinir.
 
 Mesaj yazmak için giriş yapmak gerekir, mesaj üyenin kendi adıyla görünür. Tablo (`chat_messages`) tarayıcıdan doğrudan yazılamaz, sadece oturum anahtarı isteyen `send_chat` fonksiyonuyla yazılır. Kurulum: `chat.sql`, `members.sql`.
 
