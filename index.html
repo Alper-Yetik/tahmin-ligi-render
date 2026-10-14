@@ -259,6 +259,7 @@ button.rx{cursor:pointer}
 button.rxrowp{cursor:pointer}
 button.rxrowp:hover{background:var(--surface2)}
 .rxn{display:flex;flex-direction:column;font-weight:600}
+.rxt{font-size:.8rem;opacity:.7;font-variant-numeric:tabular-nums;white-space:nowrap}
 .rxn small{font-weight:400;font-size:.75rem;opacity:.65}
 .rxe{font-size:1.5rem;line-height:1}
 .msg.mine .rx{background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.35);color:inherit}
@@ -930,11 +931,22 @@ button.pill.pop{animation:rxpop .28s ease-out}
     var s=readState(m), d=document.createElement("div");d.className="rxsheetbg";
     function close(){d.remove();document.removeEventListener("keydown",k,true)}
     function k(e){if(e.key==="Escape"){e.stopPropagation();close()}}
-    var seen=s.got.map(function(r){return r.nick}).sort(), not=s.others.filter(function(r){return r.last_id<mid}).map(function(r){return r.nick}).sort();
-    function rows(a){return a.map(function(n){return '<div class="rxrowp"><span class="rxn">'+esc(n)+'</span></div>'}).join("")}
-    d.innerHTML='<div class="rxsheet" role="dialog" aria-label="Mesaj bilgisi"><div class="rxtabs"><button type="button" class="on">Okuyanlar <b>'+seen.length+'</b></button></div><div class="rxlist">'+
-      (seen.length?rows(seen):'<div class="rxrowp"><span class="rxn"><small>Henüz kimse okumadı</small></span></div>')+
-      (not.length?'<div class="rxcat" style="margin:10px 18px 2px">Okumayanlar</div>'+rows(not):'')+'</div></div>';
+    var times={};
+    function whenTxt(id){var t=times[id];return t?dayLabel(t)+" "+fmtTime(t):""}
+    function rows(a,withTime){return a.map(function(r){return '<div class="rxrowp"><span class="rxn">'+esc(r.nick)+'</span>'+(withTime&&times[r.id]?'<span class="rxt">'+esc(whenTxt(r.id))+'</span>':'')+'</div>'}).join("")}
+    function draw(){
+      var seen=s.got.slice().sort(function(x,y){return (times[x.id]||0)-(times[y.id]||0)||x.nick.localeCompare(y.nick,"tr")});
+      var not=s.others.filter(function(r){return r.last_id<mid}).sort(function(x,y){return x.nick.localeCompare(y.nick,"tr")});
+      d.innerHTML='<div class="rxsheet" role="dialog" aria-label="Mesaj bilgisi"><div class="rxtabs"><button type="button" class="on">Okuyanlar <b>'+seen.length+'</b></button></div><div class="rxlist">'+
+        (seen.length?rows(seen,true):'<div class="rxrowp"><span class="rxn"><small>Henüz kimse okumadı</small></span></div>')+
+        (not.length?'<div class="rxcat" style="margin:10px 18px 2px">Okumayanlar</div>'+rows(not,false):'')+'</div></div>';
+    }
+    draw();
+    /* Okuma zamanı: üyenin okuma ilerlemesinin bu mesaja ya da ötesine ilk ulaştığı an. Okunamazsa liste zamansız kalır. */
+    sb("/rest/v1/chat_read_log_public?select=player_id,at&last_id=gte."+mid+"&order=at.asc").then(function(rows0){
+      rows0.forEach(function(r){var t=Date.parse(r.at);if(t&&!times[r.player_id])times[r.player_id]=t});
+      if(d.isConnected)draw();
+    }).catch(function(){});
     d.addEventListener("click",function(e){if(!e.target.closest(".rxsheet"))close()});
     document.addEventListener("keydown",k,true);document.body.appendChild(d);
   }
