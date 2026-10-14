@@ -146,6 +146,8 @@ a.link{display:inline}
 .cd i.y{background:#f7c600}
 .cd i.r{background:#e5392b}
 p.state.live{margin:0}
+.foot .grow{flex:1}
+.foot .grow{flex:1}
 .foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;min-height:38px;border-top:1px solid var(--line);padding-top:12px}
 .state{font-size:.86rem;color:var(--muted)}
 .state.ok{color:var(--accent);font-weight:600} .state.warn{color:var(--bad);font-weight:600}
@@ -485,6 +487,9 @@ button.pill.pop{animation:rxpop .28s ease-out}
     no_match:"Bu maç artık yok.",
     closed:"Maç başladı, tahmin süresi doldu.",
     already_predicted:"Bu maça zaten tahmin girmişsin.",
+    already_edited:"Bu tahminin değiştirme hakkını zaten kullandın.",
+    same_score:"Skor aynı, değiştirmek için farklı bir skor gir.",
+    no_prediction:"Önce tahmin girmelisin.",
     wrong_admin:"Yönetici şifresi yanlış.",
     too_fast:"Çok hızlı yazıyorsun, birkaç saniye bekle.",
     busy:"Şu an çok yoğun, biraz sonra tekrar dene.",
@@ -495,7 +500,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
   var BOT="uclu_tahmin_bot", tgLinked={};
   var matches=[], preds={}, players={}, lastSig="", prx={};
   var stand={}, standAt=0, standBusy=false, standSig="", euro="ucl";
-  var tab="matches", filter="all", sub="up", drafts={}, flash={}, pendingDelete=null;
+  var tab="matches", filter="all", sub="up", drafts={}, flash={}, editing={}, pendingDelete=null;
   var el=function(id){return document.getElementById(id)};
   var isAdmin=function(){return !!adminPass};
 
@@ -597,7 +602,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
       if(sig!==lastSig||loading){
         lastSig=sig;
         matches=r[0].map(function(x){return {id:x.id,home:x.home,away:x.away,comp:x.comp,kickoff:Date.parse(x.kickoff),hs:x.home_score,as:x.away_score,lh:x.live_home,la:x.live_away,lmin:x.live_minute,lst:x.live_state,lupd:x.live_updated?Date.parse(x.live_updated):0,ladd:x.live_added,hy:x.home_yellow,hr:x.home_red,ay:x.away_yellow,ar:x.away_red,ev:Array.isArray(x.live_events)?x.live_events:[]}});
-        preds={};r[1].forEach(function(x){preds[x.match_id+"_"+x.player_id]={m:x.match_id,u:x.player_id,h:x.h,a:x.a}});
+        preds={};r[1].forEach(function(x){preds[x.match_id+"_"+x.player_id]={m:x.match_id,u:x.player_id,h:x.h,a:x.a,ed:!!x.edited}});
         players={};r[2].forEach(function(x){players[x.id]=x.nick});
         tgLinked={};r[3].forEach(function(x){tgLinked[x.player_id]=1});
         prx={};(r[4]||[]).forEach(function(x){(prx[x.match_id+"_"+x.target_id]||(prx[x.match_id+"_"+x.target_id]=[])).push({rid:x.reactor_id,nick:x.nick,kind:x.kind})});
@@ -649,7 +654,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
       '<div><span>Galibi bildin ama gol farkı yanlış</span><b>'+SIDE+' puan</b></div>'+
       '<div><span>Yanlış tahmin</span><b>0 puan</b></div>'+
       '<span class="state">Beraberlikte gol farkı hep 0 olduğu için, beraberliği bilen her tahmin (skor farklı olsa bile, örneğin 1-1 yerine 2-2) 3 puan alır. Beraberlik tahmini yapıp galibiyet çıkarsa ya da tersi olursa 0 puan.</span>'+
-      '<span class="state">Her maça bir kez tahmin girersin, kaydedince kilitlenir ve değiştirilemez. Tahmin girişi maç başlamadan 5 saat önce kapanır. Herkesin tahmini maç kartında görünür. Skorlar 90 dakika + uzatma sonucudur, penaltılar sayılmaz.</span></div>';
+      '<span class="state">Her maça bir kez tahmin girersin, kaydedince kilitlenir; yalnızca 1 kez değiştirme hakkın var. Tahmin girişi maç başlamadan 5 saat önce kapanır. Herkesin tahmini maç kartında görünür. Skorlar 90 dakika + uzatma sonucudur, penaltılar sayılmaz.</span></div>';
   }
 
   function matchesHtml(){
@@ -672,7 +677,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
   }
 
   function matchCard(m){
-    var mine=auth?predFor(m.id,auth.id):null, locked=closed(m)||!auth||!!mine, fin=finished(m), lv=isLive(m), pv=provisional(m);
+    var mine=auth?predFor(m.id,auth.id):null, locked=closed(m)||!auth||(!!mine&&!editing[m.id]), fin=finished(m), lv=isLive(m), pv=provisional(m);
     var d=drafts[m.id]||{};
     var hv=d.h!==undefined?d.h:(mine?mine.h:""), av=d.a!==undefined?d.a:(mine?mine.a:"");
     var center;
@@ -700,11 +705,17 @@ button.pill.pop{animation:rxpop .28s ease-out}
       foot='<div class="foot">'+(mine?'<span class="state">Tahminin: <b>'+mine.h+' - '+mine.a+'</b> · '+(started(m)?'Maç başladı, sonuç bekleniyor':'Tahminler kapandı')+'</span>':'<span class="state warn">Tahmin süresi doldu (maçtan 5 saat önce kapanır)</span>')+'</div>';
     } else if(!auth){
       foot='<div class="foot"><span class="state">'+countPreds(m.id)+' kişi tahmin girdi</span></div>';
+    } else if(mine&&editing[m.id]){
+      var ev2=drafts[m.id]||{}, ch=ev2.h!==undefined&&ev2.a!==undefined&&ev2.h!==""&&ev2.a!==""&&+ev2.h>=0&&+ev2.a>=0&&+ev2.h<=30&&+ev2.a<=30&&!(+ev2.h===mine.h&&+ev2.a===mine.a);
+      foot='<div class="foot">'+(f?'<span class="state warn">'+esc(f)+'</span>':'<span class="state warn">Bu tek değiştirme hakkın: kaydedince bir daha değiştiremezsin.</span>')+
+        '<span class="grow"></span><button class="btn ghost" data-action="editCancel" data-m="'+esc(m.id)+'">Vazgeç</button> <button class="btn" data-action="editSave" data-m="'+esc(m.id)+'" '+(ch?"":"disabled")+'>Değişikliği kaydet</button></div>';
+    } else if(mine&&mine.ed){
+      foot='<div class="foot"><span class="state ok">Tahminin değiştirildi: <b>'+mine.h+' - '+mine.a+'</b>. Başka değişiklik hakkın yok.</span></div>';
     } else if(mine){
-      foot='<div class="foot"><span class="state ok">Tahminin kilitlendi: <b>'+mine.h+' - '+mine.a+'</b>. Değiştirilemez.</span></div>';
+      foot='<div class="foot"><span class="state ok">Tahminin kilitlendi: <b>'+mine.h+' - '+mine.a+'</b>. 1 kez değiştirebilirsin.</span><span class="grow"></span><button class="btn ghost" data-action="editStart" data-m="'+esc(m.id)+'">Değiştir</button></div>';
     } else {
       var valid=hv!==""&&av!==""&&+hv>=0&&+av>=0&&+hv<=30&&+av<=30;
-      var msg=f?'<span class="state warn">'+esc(f)+'</span>':'<span class="state">Kaydedince değiştiremezsin</span>';
+      var msg=f?'<span class="state warn">'+esc(f)+'</span>':'<span class="state">Sonradan sadece 1 kez değiştirebilirsin</span>';
       foot='<div class="foot">'+msg+'<button class="btn" data-action="savePred" data-m="'+esc(m.id)+'" '+(valid?"":"disabled")+'>Tahmini kilitle</button></div>';
     }
     var others="";
@@ -1627,6 +1638,30 @@ button.pill.pop{animation:rxpop .28s ease-out}
     }catch(e){flash[mid]="Bağlantı hatası, tekrar dene."}
     await load();render();
   }
+  function editStart(mid){
+    var mine=auth&&predFor(mid,auth.id);if(!mine||mine.ed)return;
+    var m=matches.find(function(x){return x.id===mid});if(!m||closed(m))return;
+    editing[mid]=true;drafts[mid]={h:String(mine.h),a:String(mine.a)};delete flash[mid];render();
+  }
+  function editCancel(mid){delete editing[mid];delete drafts[mid];delete flash[mid];render()}
+  async function editSave(mid){
+    if(!auth)return;
+    var m=matches.find(function(x){return x.id===mid}), mine=predFor(mid,auth.id);
+    if(!m||!mine||mine.ed)return;
+    if(closed(m)){flash[mid]="Tahmin süresi doldu (maçtan 5 saat önce kapanır).";delete editing[mid];delete drafts[mid];render();return}
+    var d=drafts[mid]||{}, h=parseInt(d.h,10), a=parseInt(d.a,10);
+    if(isNaN(h)||isNaN(a)||h<0||a<0||h>30||a>30)return;
+    try{
+      var r=await rpc("change_prediction",{p_token:auth.token,p_match:mid,p_h:h,p_a:a});
+      if(r.ok){delete editing[mid];delete drafts[mid];delete flash[mid]}
+      else{
+        flash[mid]=r.error==="closed"?"Tahmin süresi doldu (maçtan 5 saat önce kapanır).":(ERR[r.error]||"Kaydedilemedi.");
+        if(r.error==="closed"||r.error==="already_edited"){delete editing[mid];delete drafts[mid]}
+        if(r.error==="not_logged_in"){auth=null;lsDel("tl_auth");chatFootKey=""}
+      }
+    }catch(e){flash[mid]="Bağlantı hatası, tekrar dene."}
+    await load();render();
+  }
   async function adminCall(name,args){
     args.p_admin=adminPass;
     try{
@@ -1792,6 +1827,9 @@ button.pill.pop{animation:rxpop .28s ease-out}
     else if(a==="readers")openReadSheet(+t.dataset.id);
     else if(a==="delChat")delChat(t.dataset.id);
     else if(a==="savePred")savePred(m);
+    else if(a==="editStart")editStart(m);
+    else if(a==="editCancel")editCancel(m);
+    else if(a==="editSave")editSave(m);
     else if(a==="signout"){var tk=auth&&auth.token;auth=null;lsDel("tl_auth");chatFootKey="";el("pwbox").hidden=true;setMode("login");render();if(tk)rpc("member_logout",{p_token:tk}).catch(function(){})}
     else if(a==="tgLink")tgLink();
     else if(a==="showPw"){el("pwbox").hidden=false;el("pwOld").focus()}
@@ -1811,6 +1849,8 @@ button.pill.pop{animation:rxpop .28s ease-out}
     var h=d.h===undefined?"":d.h,a=d.a===undefined?"":d.a;
     var btn=document.querySelector('[data-action="savePred"][data-m="'+t.dataset.m+'"]');
     if(btn)btn.disabled=!(h!==""&&a!==""&&+h>=0&&+a>=0&&+h<=30&&+a<=30);
+    var eb=document.querySelector('[data-action="editSave"][data-m="'+t.dataset.m+'"]'), mn=auth&&predFor(t.dataset.m,auth.id);
+    if(eb&&mn)eb.disabled=!(h!==""&&a!==""&&+h>=0&&+a>=0&&+h<=30&&+a<=30&&!(+h===mn.h&&+a===mn.a));
   });
   /* Yazı kutusuna yapıştırılan görsel ya da GIF (klavyedeki GIF'ler dahil) gönderilecek görsel olarak eklenir. */
   document.addEventListener("paste",function(e){
