@@ -162,6 +162,9 @@ p.state.live{margin:0}
 .others{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-wrap:wrap;gap:7px 8px}
 .pill{display:inline-flex;gap:7px;align-items:baseline;background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:.82rem}
 .pill b{font-family:var(--display);font-size:1.05rem;font-variant-numeric:tabular-nums}
+.pill .chg{color:var(--muted,inherit);font-size:.74rem;opacity:.85}
+.pill .chg s,.oldp{opacity:.65;text-decoration-thickness:1.5px}
+.chgtag{display:inline-block;margin-left:4px;padding:1px 8px;border-radius:999px;font-size:.72rem;background:var(--accent-soft);color:var(--ink)}
 .pill .p{color:var(--gold);font-weight:800}
 
 /* ---------- sıralama ---------- */
@@ -602,7 +605,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
       if(sig!==lastSig||loading){
         lastSig=sig;
         matches=r[0].map(function(x){return {id:x.id,home:x.home,away:x.away,comp:x.comp,kickoff:Date.parse(x.kickoff),hs:x.home_score,as:x.away_score,lh:x.live_home,la:x.live_away,lmin:x.live_minute,lst:x.live_state,lupd:x.live_updated?Date.parse(x.live_updated):0,ladd:x.live_added,hy:x.home_yellow,hr:x.home_red,ay:x.away_yellow,ar:x.away_red,ev:Array.isArray(x.live_events)?x.live_events:[]}});
-        preds={};r[1].forEach(function(x){preds[x.match_id+"_"+x.player_id]={m:x.match_id,u:x.player_id,h:x.h,a:x.a,ed:!!x.edited}});
+        preds={};r[1].forEach(function(x){preds[x.match_id+"_"+x.player_id]={m:x.match_id,u:x.player_id,h:x.h,a:x.a,ed:!!x.edited,ph:x.prev_h,pa:x.prev_a}});
         players={};r[2].forEach(function(x){players[x.id]=x.nick});
         tgLinked={};r[3].forEach(function(x){tgLinked[x.player_id]=1});
         prx={};(r[4]||[]).forEach(function(x){(prx[x.match_id+"_"+x.target_id]||(prx[x.match_id+"_"+x.target_id]=[])).push({rid:x.reactor_id,nick:x.nick,kind:x.kind})});
@@ -710,7 +713,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
       foot='<div class="foot">'+(f?'<span class="state warn">'+esc(f)+'</span>':'<span class="state warn">Bu tek değiştirme hakkın: kaydedince bir daha değiştiremezsin.</span>')+
         '<span class="grow"></span><button class="btn ghost" data-action="editCancel" data-m="'+esc(m.id)+'">Vazgeç</button> <button class="btn" data-action="editSave" data-m="'+esc(m.id)+'" '+(ch?"":"disabled")+'>Değişikliği kaydet</button></div>';
     } else if(mine&&mine.ed){
-      foot='<div class="foot"><span class="state ok">Tahminin değiştirildi: <b>'+mine.h+' - '+mine.a+'</b>. Başka değişiklik hakkın yok.</span></div>';
+      foot='<div class="foot"><span class="state ok">Tahminin değiştirildi: '+(prevTxt(mine)?'<s class="oldp">'+mine.ph+' - '+mine.pa+'</s> → ':'')+'<b>'+mine.h+' - '+mine.a+'</b>. Başka değişiklik hakkın yok.</span></div>';
     } else if(mine){
       foot='<div class="foot"><span class="state ok">Tahminin kilitlendi: <b>'+mine.h+' - '+mine.a+'</b>. 1 kez değiştirebilirsin.</span><span class="grow"></span><button class="btn ghost" data-action="editStart" data-m="'+esc(m.id)+'">Değiştir</button></div>';
     } else {
@@ -724,7 +727,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
       others='<div class="others">'+ps.sort(function(a,b){return (score(b,m)||0)-(score(a,m)||0)||nameOf(a.u).localeCompare(nameOf(b.u),"tr")}).map(function(p){
         var pt=score(p,m);
         var rxc=prxChips(m.id,p.u);
-        return '<button type="button" class="pill'+(rxc?' hasrx':'')+'" data-action="predopen" data-m="'+esc(m.id)+'" data-u="'+esc(p.u)+'" aria-label="'+esc(nameOf(p.u))+' tahmini, tepkiler ve yorum">'+esc(nameOf(p.u))+(auth&&p.u===auth.id?' (sen)':'')+' <b>'+p.h+'-'+p.a+'</b>'+(pt!=null?' <span class="p">+'+pt+'</span>':'')+rxc+'</button>';
+        return '<button type="button" class="pill'+(rxc?' hasrx':'')+'" data-action="predopen" data-m="'+esc(m.id)+'" data-u="'+esc(p.u)+'" aria-label="'+esc(nameOf(p.u))+' tahmini, tepkiler ve yorum">'+esc(nameOf(p.u))+(auth&&p.u===auth.id?' (sen)':'')+(p.ed?' <span class="chg" title="Tahminini değiştirdi'+(prevTxt(p)?' (önceki: '+prevTxt(p)+')':'')+'">'+(prevTxt(p)?'<s>'+prevTxt(p)+'</s> →':'✎')+'</span>':'')+' <b>'+p.h+'-'+p.a+'</b>'+(pt!=null?' <span class="p">+'+pt+'</span>':'')+rxc+'</button>';
       }).join("")+'</div>';
     }
     var closing=(!fin&&!closed(m))?' · Tahmin kapanışı: '+fmtDate(m.kickoff-LOCK_MS):'';
@@ -1099,7 +1102,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
     var mine=auth&&list.find(function(r){return r.rid===auth.id});
     var pt=score(p,mt);
     var h='<div class="rxsheet predsheet" role="dialog" aria-label="Tahmin"><div class="psh"><b>'+esc(nameOf(p.u))+'</b> · '+esc(mt.home)+' - '+esc(mt.away)+
-      '<div class="state">Tahmin: <b>'+p.h+'-'+p.a+'</b>'+(pt!=null?' · +'+pt+' puan'+(isLive(mt)?' şimdilik':''):'')+'</div></div>';
+      '<div class="state">Tahmin: <b>'+p.h+'-'+p.a+'</b>'+(p.ed?' <span class="chgtag">değiştirildi'+(prevTxt(p)?' · önceki: <s>'+prevTxt(p)+'</s>':'')+'</span>':'')+(pt!=null?' · +'+pt+' puan'+(isLive(mt)?' şimdilik':''):'')+'</div></div>';
     if(auth){
       h+='<div class="rxpick">'+RX_QUICK.map(function(e){return '<button type="button" class="'+(mine&&mine.kind===e?'sel':'')+'" data-pk="'+esc(e)+'" aria-label="Tepki '+esc(e)+'">'+esc(e)+'</button>'}).join("")+
         '<button type="button" class="rxmore" data-pcomment="1" aria-label="Sohbette alıntıla">↩</button>'+
@@ -1638,6 +1641,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
     }catch(e){flash[mid]="Bağlantı hatası, tekrar dene."}
     await load();render();
   }
+  function prevTxt(p){return p&&p.ed&&p.ph!=null&&p.pa!=null?p.ph+'-'+p.pa:''}
   function editStart(mid){
     var mine=auth&&predFor(mid,auth.id);if(!mine||mine.ed)return;
     var m=matches.find(function(x){return x.id===mid});if(!m||closed(m))return;

@@ -7,7 +7,7 @@ Canlı site: https://tahmin-ligi-render.onrender.com/
 ## Nasıl çalışır
 
 - **Üyelik: kullanıcı adı + şifre.** Tahmin girmek ve sohbet için giriş yapmak gerekir (bkz. "Üyelik"). Misafirler maçları, tahminleri, sıralamayı ve sohbeti okuyabilir ama yazamaz.
-- **Her maça tek tahmin.** Kaydedilince kilitlenir; her tahmin yalnızca **1 kez** değiştirilebilir ("Değiştir" düğmesi, farklı bir skor gerekir; hak kullanılınca bir daha değiştirilemez). Silinemez (yönetici hariç). Kapanış kuralı aynı: maça 5 saat kala hem girilemez hem değiştirilemez. Telegram hatırlatmaları değişmez. Kurulum: `pred_edit.sql`.
+- **Her maça tek tahmin.** Kaydedilince kilitlenir; her tahmin yalnızca **1 kez** değiştirilebilir ("Değiştir" düğmesi, farklı bir skor gerekir; hak kullanılınca bir daha değiştirilemez). Silinemez (yönetici hariç). Kapanış kuralı aynı: maça 5 saat kala hem girilemez hem değiştirilemez. Telegram hatırlatmaları değişmez. Değiştirilen tahminde kartta eski skor üstü çizili gösterilir ("~~1-0~~ → 3-0"). Kurulum: `pred_edit.sql`.
 - **Maçtan 5 saat önce kapanır.** Örneğin 20:00'de başlayan maça 15:00'e kadar tahmin girilir. Kural veritabanında uygulanır, tarayıcıdan atlatılamaz.
 - **Herkesin tahmini maç kartında görünür.**
 - **Maçlar sekmesi:** Canlı maçlar en üstte durur, altında **Oynanacak** ve **Oynanan** yan yana iki sekme vardır (parantez içinde maç sayısı). Biten maçta skorun altında **MS** (maç sonu) yazar.

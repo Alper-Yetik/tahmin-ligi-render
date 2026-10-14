@@ -5,6 +5,9 @@
 
 alter table predictions add column if not exists edited boolean not null default false;
 alter table predictions add column if not exists edited_at timestamptz;
+-- Değiştirilmeden önceki skor (kartta "önceki tahmin" olarak gösterilir). Bu alan eklenmeden önce değişenlerde boştur.
+alter table predictions add column if not exists prev_h int;
+alter table predictions add column if not exists prev_a int;
 
 create or replace function change_prediction(p_token text, p_match text, p_h int, p_a int)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
@@ -21,7 +24,7 @@ begin
   if not found then return jsonb_build_object('ok', false, 'error', 'no_prediction'); end if;
   if cur.edited then return jsonb_build_object('ok', false, 'error', 'already_edited'); end if;
   if cur.h = p_h and cur.a = p_a then return jsonb_build_object('ok', false, 'error', 'same_score'); end if;
-  update predictions set h = p_h, a = p_a, edited = true, edited_at = now()
+  update predictions set prev_h = cur.h, prev_a = cur.a, h = p_h, a = p_a, edited = true, edited_at = now()
    where match_id = p_match and player_id = pid;
   return jsonb_build_object('ok', true);
 end $$;
