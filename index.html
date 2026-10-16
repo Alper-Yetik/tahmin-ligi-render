@@ -1086,8 +1086,9 @@ button.pill.pop{animation:rxpop .28s ease-out}
     predSel=null;document.removeEventListener("keydown",predKey,true);
   }
   var predOpenAt=0;
-  function openPredSheet(mid,uid){
-    predSel={m:mid,u:uid,full:false};predOpenAt=Date.now();
+  /* mode: "view" = sadece kimin hangi emojiyi verdiği (telefonda dokunma); "react" = emoji seçici de açık (basılı tutma, bilgisayarda tıklama). */
+  function openPredSheet(mid,uid,mode){
+    predSel={m:mid,u:uid,full:false,mode:mode||"react"};predOpenAt=Date.now();
     if(!predSheetEl){
       predSheetEl=document.createElement("div");predSheetEl.className="rxsheetbg";
       predSheetEl.addEventListener("click",predSheetClick);
@@ -1105,7 +1106,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
     var pt=score(p,mt);
     var h='<div class="rxsheet predsheet" role="dialog" aria-label="Tahmin"><div class="psh"><b>'+esc(nameOf(p.u))+'</b> · '+esc(mt.home)+' - '+esc(mt.away)+
       '<div class="state">Tahmin: <b>'+p.h+'-'+p.a+'</b>'+(p.ed?' <span class="chgtag">değiştirildi'+(prevTxt(p)?' · önceki: <s>'+prevTxt(p)+'</s>':'')+'</span>':'')+(pt!=null?' · +'+pt+' puan'+(isLive(mt)?' şimdilik':''):'')+'</div></div>';
-    if(auth){
+    if(auth&&predSel.mode==='react'){
       h+='<div class="rxpick">'+RX_QUICK.map(function(e){return '<button type="button" class="'+(mine&&mine.kind===e?'sel':'')+'" data-pk="'+esc(e)+'" aria-label="Tepki '+esc(e)+'">'+esc(e)+'</button>'}).join("")+
         '<button type="button" class="rxmore" data-pcomment="1" aria-label="Sohbette alıntıla">↩</button>'+
         '<button type="button" class="rxmore" data-pmore="1" aria-label="Tüm emojiler" aria-expanded="'+!!predSel.full+'">'+(predSel.full?'−':'+')+'</button></div>';
@@ -1114,9 +1115,9 @@ button.pill.pop{animation:rxpop .28s ease-out}
       }).join("")+'</div>';
     }
     h+='<div class="rxlist">'+(list.length?list.map(function(r){
-      var me=auth&&r.rid===auth.id;
-      return '<div class="rxrowp'+(me?' me':'')+'"><span class="rxn">'+esc(me?"Sen":r.nick)+'</span><span class="rxe">'+esc(r.kind)+'</span></div>';
-    }).join(""):'<div class="rxrowp"><span class="rxn"><small>Henüz tepki yok'+(auth?'':' · tepki bırakmak için giriş yap')+'</small></span></div>')+'</div>'+
+      var me=auth&&r.rid===auth.id, view=predSel.mode==='view';
+      return '<'+(me&&view?'button type="button" data-pk="'+esc(r.kind)+'"':'div')+' class="rxrowp'+(me?' me':'')+'"><span class="rxn">'+esc(me?"Sen":r.nick)+(me&&view?'<small>Kaldırmak için dokun</small>':'')+'</span><span class="rxe">'+esc(r.kind)+'</span></'+(me&&view?'button':'div')+'>';
+    }).join(""):'<div class="rxrowp"><span class="rxn"><small>Henüz tepki yok'+(auth?(predSel.mode==='view'?' · tepki bırakmak için tahmine basılı tut':''):' · tepki bırakmak için giriş yap')+'</small></span></div>')+'</div>'+
       '<div class="pshact"><button class="btn ghost" type="button" data-pclose="1">Kapat</button></div></div>';
     predSheetEl.innerHTML=h;
   }
@@ -1762,7 +1763,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
     ppTimer=setTimeout(function(){
       ppTimer=0;pill.classList.remove("pressing");ppEl=null;
       pill.classList.add("pop");setTimeout(function(){pill.classList.remove("pop")},400);
-      openPredSheet(pill.dataset.m,pill.dataset.u);haptic();
+      openPredSheet(pill.dataset.m,pill.dataset.u,"react");haptic();
     },450);
   },{passive:true});
   document.addEventListener("touchmove",function(e){
@@ -1825,7 +1826,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
     else if(a==="reply")setReply(+t.dataset.id);
     else if(a==="clearReply"){if(editMsg)cancelEdit();replyTo=null;predQuote=null;updateReplyPrev()}
     else if(a==="chatDown"){var cb=el("chatlist");if(cb){chatProg=Date.now();cb.scrollTo({top:cb.scrollHeight,behavior:"smooth"})}}
-    else if(a==="predopen"){if(!matchMedia("(pointer:coarse)").matches)openPredSheet(t.dataset.m,t.dataset.u)}
+    else if(a==="predopen"){if(Date.now()-predOpenAt<700)return;openPredSheet(t.dataset.m,t.dataset.u,matchMedia("(pointer:coarse)").matches?"view":"react")}
     else if(a==="gotoMatch")gotoMatch(t.dataset.m);
     else if(a==="editMsg")startEdit(+t.dataset.id);
     else if(a==="delMsg")delMsg(+t.dataset.id);
