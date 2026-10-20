@@ -10,7 +10,7 @@ create or replace view predictions_public as
          (m.kickoff - interval '5 hours' <= now()) as revealed,
          case when m.kickoff - interval '5 hours' <= now() then p.h end as h,
          case when m.kickoff - interval '5 hours' <= now() then p.a end as a,
-         (p.edited and m.kickoff - interval '5 hours' <= now()) as edited,
+         p.edited as edited, -- değiştirdi bilgisi kilitliyken de görünür (skor ve eski skor gizli kalır)
          case when m.kickoff - interval '5 hours' <= now() then p.prev_h end as prev_h,
          case when m.kickoff - interval '5 hours' <= now() then p.prev_a end as prev_a
   from predictions p join matches m on m.id = p.match_id;
