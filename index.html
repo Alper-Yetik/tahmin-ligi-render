@@ -162,6 +162,7 @@ p.state.live{margin:0}
 .others{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-wrap:wrap;gap:7px 8px}
 .pill{display:inline-flex;gap:7px;align-items:baseline;background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:.82rem}
 .pill b{font-family:var(--display);font-size:1.05rem;font-variant-numeric:tabular-nums}
+.pill .hidp{opacity:.8;font-size:.8rem}
 .pill .chg{color:var(--muted,inherit);font-size:.74rem;opacity:.85}
 .pill .chg s,.oldp,.chgtag s{text-decoration:none;font:inherit;opacity:.7}
 .chgtag{display:inline-block;margin-left:4px;padding:1px 8px;border-radius:999px;font-size:.72rem;background:var(--accent-soft);color:var(--ink)}
@@ -582,7 +583,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
   function liveMinute(m){return m.lst==="ht"?"Devre arası":m.lst==="ft"?"MS":fmtMin(m.lmin)}
   function score(p,m){
     var r=effRes(m);
-    if(!p||!r)return null;
+    if(!p||p.hid||!r)return null;
     if(p.h===r.hs&&p.a===r.as)return EXACT;
     if(sgn(p.h-p.a)!==sgn(r.hs-r.as))return 0;
     return (p.h-p.a===r.hs-r.as)?DIFF:SIDE;
@@ -597,17 +598,20 @@ button.pill.pop{animation:rxpop .28s ease-out}
     try{
       var r=await Promise.all([
         sb("/rest/v1/matches?select=*&order=kickoff.asc"),
-        sb("/rest/v1/predictions?select=*"),
+        sb("/rest/v1/predictions_public?select=*"),
         sb("/rest/v1/players_public?select=*"),
         sb("/rest/v1/players_telegram?select=player_id").catch(function(){return []}),
-        sb("/rest/v1/prediction_reactions_public?select=*").catch(function(){return []})
+        sb("/rest/v1/prediction_reactions_public?select=*").catch(function(){return []}),
+        auth?rpc("my_predictions",{p_token:auth.token}).catch(function(){return null}):Promise.resolve(null)
       ]);
       var sig=JSON.stringify(r);
       loadError="";
       if(sig!==lastSig||loading){
         lastSig=sig;
         matches=r[0].map(function(x){return {id:x.id,home:x.home,away:x.away,comp:x.comp,kickoff:Date.parse(x.kickoff),hs:x.home_score,as:x.away_score,lh:x.live_home,la:x.live_away,lmin:x.live_minute,lst:x.live_state,lupd:x.live_updated?Date.parse(x.live_updated):0,ladd:x.live_added,hy:x.home_yellow,hr:x.home_red,ay:x.away_yellow,ar:x.away_red,ev:Array.isArray(x.live_events)?x.live_events:[]}});
-        preds={};r[1].forEach(function(x){preds[x.match_id+"_"+x.player_id]={m:x.match_id,u:x.player_id,h:x.h,a:x.a,ed:!!x.edited,ph:x.prev_h,pa:x.prev_a}});
+        preds={};r[1].forEach(function(x){preds[x.match_id+"_"+x.player_id]={m:x.match_id,u:x.player_id,h:x.h,a:x.a,ed:!!x.edited,ph:x.prev_h,pa:x.prev_a,hid:!x.revealed}});
+        /* Kendi tahminlerin kapanıştan önce de tam görünür; başkalarınınki kapanışa kadar gizli (hid). */
+        if(auth&&r[5]&&r[5].ok)r[5].items.forEach(function(x){preds[x.match_id+"_"+auth.id]={m:x.match_id,u:auth.id,h:x.h,a:x.a,ed:!!x.edited,ph:x.prev_h,pa:x.prev_a,hid:false}});
         players={};r[2].forEach(function(x){players[x.id]=x.nick});
         tgLinked={};r[3].forEach(function(x){tgLinked[x.player_id]=1});
         prx={};(r[4]||[]).forEach(function(x){(prx[x.match_id+"_"+x.target_id]||(prx[x.match_id+"_"+x.target_id]=[])).push({rid:x.reactor_id,nick:x.nick,kind:x.kind})});
@@ -659,7 +663,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
       '<div><span>Galibi bildin ama gol farkı yanlış</span><b>'+SIDE+' puan</b></div>'+
       '<div><span>Yanlış tahmin</span><b>0 puan</b></div>'+
       '<span class="state">Beraberlikte gol farkı hep 0 olduğu için, beraberliği bilen her tahmin (skor farklı olsa bile, örneğin 1-1 yerine 2-2) 3 puan alır. Beraberlik tahmini yapıp galibiyet çıkarsa ya da tersi olursa 0 puan.</span>'+
-      '<span class="state">Her maça bir kez tahmin girersin, kaydedince kilitlenir; yalnızca 1 kez değiştirme hakkın var. Tahmin girişi maç başlamadan 5 saat önce kapanır. Herkesin tahmini maç kartında görünür. Skorlar 90 dakika + uzatma sonucudur, penaltılar sayılmaz.</span></div>';
+      '<span class="state">Her maça bir kez tahmin girersin, kaydedince kilitlenir; yalnızca 1 kez değiştirme hakkın var. Tahmin girişi maç başlamadan 5 saat önce kapanır. Kimlerin tahmin girdiği hemen görünür, ama skorlar tahmin kapanışına (maça 5 saat kala) kadar herkesten gizli kalır; kapanınca herkesin tahmini maç kartında açılır. Skorlar 90 dakika + uzatma sonucudur, penaltılar sayılmaz.</span></div>';
   }
 
   function matchesHtml(){
@@ -729,8 +733,8 @@ button.pill.pop{animation:rxpop .28s ease-out}
       others='<div class="others">'+ps.sort(function(a,b){return (score(b,m)||0)-(score(a,m)||0)||nameOf(a.u).localeCompare(nameOf(b.u),"tr")}).map(function(p){
         var pt=score(p,m);
         var rxc=prxChips(m.id,p.u);
-        return '<button type="button" class="pill'+(rxc?' hasrx':'')+'" data-action="predopen" data-m="'+esc(m.id)+'" data-u="'+esc(p.u)+'" aria-label="'+esc(nameOf(p.u))+' tahmini, tepkiler ve yorum">'+esc(nameOf(p.u))+(auth&&p.u===auth.id?' (sen)':'')+(p.ed?' <span class="chg" title="Tahminini değiştirdi'+(prevTxt(p)?' (önceki: '+prevTxt(p)+')':'')+'">'+(prevTxt(p)?'<s>'+prevTxt(p)+'</s> →':'✎')+'</span>':'')+' <b>'+p.h+'-'+p.a+'</b>'+(pt!=null?' <span class="p">+'+pt+'</span>':'')+rxc+'</button>';
-      }).join("")+'</div>';
+        return '<button type="button" class="pill'+(rxc?' hasrx':'')+'" data-action="predopen" data-m="'+esc(m.id)+'" data-u="'+esc(p.u)+'" aria-label="'+esc(nameOf(p.u))+' tahmini, tepkiler ve yorum">'+esc(nameOf(p.u))+(auth&&p.u===auth.id?' (sen)':'')+(p.ed&&!p.hid?' <span class="chg" title="Tahminini değiştirdi'+(prevTxt(p)?' (önceki: '+prevTxt(p)+')':'')+'">'+(prevTxt(p)?'<s>'+prevTxt(p)+'</s> →':'✎')+'</span>':'')+(p.hid?' <span class="hidp" title="Tahmin girdi, skor kapanışta açılır">🔒</span>':' <b>'+p.h+'-'+p.a+'</b>')+(pt!=null?' <span class="p">+'+pt+'</span>':'')+rxc+'</button>';
+      }).join("")+(ps.some(function(p){return p.hid})?'<span class="state hidnote">🔒 Skorlar tahmin kapanışında açılır</span>':'')+'</div>';
     }
     var closing=(!fin&&!closed(m))?' · Tahmin kapanışı: '+fmtDate(m.kickoff-LOCK_MS):'';
     var showCards=fin||lv||pv;
@@ -890,6 +894,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
   var editMsg=null, predQuote=null;
   function pqHtml(m){
     if(!m.pred_match)return "";
+    if(m.pred_hidden)return '<div class="pq gone"><span>🔒 Alıntılanan tahmin kapanışta açılır</span></div>';
     if(m.pred_h==null)return '<div class="pq gone"><span>Alıntılanan tahmin artık yok</span></div>';
     var res=(typeof m.pred_hs==="number"&&typeof m.pred_as==="number")?score({h:m.pred_h,a:m.pred_a},{hs:m.pred_hs,as:m.pred_as}):null;
     return '<button type="button" class="pq" data-action="gotoMatch" data-m="'+esc(m.pred_match)+'" aria-label="Maça git"><b>'+esc(m.pred_nick||"?")+' · tahmin</b><span>'+esc(m.pred_home)+' '+m.pred_h+'-'+m.pred_a+' '+esc(m.pred_away)+'</span>'+(res!=null?'<small>MS '+m.pred_hs+'-'+m.pred_as+' · +'+res+' puan</small>':'')+'</button>';
@@ -1105,10 +1110,10 @@ button.pill.pop{animation:rxpop .28s ease-out}
     var mine=auth&&list.find(function(r){return r.rid===auth.id});
     var pt=score(p,mt);
     var h='<div class="rxsheet predsheet" role="dialog" aria-label="Tahmin"><div class="psh"><b>'+esc(nameOf(p.u))+'</b> · '+esc(mt.home)+' - '+esc(mt.away)+
-      '<div class="state">Tahmin: <b>'+p.h+'-'+p.a+'</b>'+(p.ed?' <span class="chgtag">değiştirildi'+(prevTxt(p)?' · önceki: <s>'+prevTxt(p)+'</s>':'')+'</span>':'')+(pt!=null?' · +'+pt+' puan'+(isLive(mt)?' şimdilik':''):'')+'</div></div>';
+      '<div class="state">'+(p.hid?'🔒 Tahmin girdi · skor tahmin kapanışında (maça 5 saat kala) açılır':'Tahmin: <b>'+p.h+'-'+p.a+'</b>')+(p.ed&&!p.hid?' <span class="chgtag">değiştirildi'+(prevTxt(p)?' · önceki: <s>'+prevTxt(p)+'</s>':'')+'</span>':'')+(pt!=null?' · +'+pt+' puan'+(isLive(mt)?' şimdilik':''):'')+'</div></div>';
     if(auth&&predSel.mode==='react'){
       h+='<div class="rxpick">'+RX_QUICK.map(function(e){return '<button type="button" class="'+(mine&&mine.kind===e?'sel':'')+'" data-pk="'+esc(e)+'" aria-label="Tepki '+esc(e)+'">'+esc(e)+'</button>'}).join("")+
-        '<button type="button" class="rxmore" data-pcomment="1" aria-label="Sohbette alıntıla">↩</button>'+
+        (p.hid?'':'<button type="button" class="rxmore" data-pcomment="1" aria-label="Sohbette alıntıla">↩</button>')+
         '<button type="button" class="rxmore" data-pmore="1" aria-label="Tüm emojiler" aria-expanded="'+!!predSel.full+'">'+(predSel.full?'−':'+')+'</button></div>';
       if(predSel.full)h+='<div class="rxgrid">'+RX_ALL.map(function(c){
         return '<div class="rxcat">'+esc(c[0])+'</div><div class="rxrow">'+c[1].split(" ").map(function(e){return '<button type="button" data-pk="'+esc(e)+'" aria-label="Tepki '+esc(e)+'">'+esc(e)+'</button>'}).join("")+'</div>';
@@ -1149,7 +1154,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
   /* "Sohbette yorum yaz": sohbeti açar, yazı kutusunun üstüne alıntılanan tahmini koyar. */
   function commentPred(mid,uid){
     var p=predFor(mid,uid), mt=matches.find(function(x){return x.id===mid});
-    if(!auth||!p||!mt)return;
+    if(!auth||!p||!mt||p.hid)return;
     predQuote={m:mid,u:uid,nick:"Tahmin · "+nameOf(uid),text:mt.home+" - "+mt.away+" · "+p.h+"-"+p.a};
     replyTo=null;cancelEdit();clearChatImg();
     if(!chatOpen)setChatOpen(true);
