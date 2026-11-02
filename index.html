@@ -796,20 +796,23 @@ button.pill.pop{animation:rxpop .28s ease-out}
     var ids={};Object.keys(players).forEach(function(i){ids[i]=1});
     var mm={};matches.forEach(function(m){mm[m.id]=m});
     var rows=Object.keys(ids).map(function(id){
-      var r={id:id,pts:0,exact:0,played:0};
+      var r={id:id,pts:0,exact:0,played:0,fb:0,gs:0,bjk:0};
       Object.keys(preds).forEach(function(k){
         var p=preds[k];if(p.u!==id)return;var m=mm[p.m];if(!m)return;
         var s=score(p,m);if(s==null)return;
         r.pts+=s;r.played++;if(s===EXACT)r.exact++;
+        /* Takım puanı: maçta o takım varsa (derbide iki takıma da) yazılır. */
+        var th=teamKey(m.home),ta=teamKey(m.away);
+        if(th)r[th]+=s;if(ta&&ta!==th)r[ta]+=s;
       });
       return r;
     }).sort(function(a,b){return b.pts-a.pts||b.exact-a.exact||nameOf(a.id).localeCompare(nameOf(b.id),"tr")});
     var doneCount=matches.filter(finished).length, liveCount=matches.filter(isLive).length;
     if(!rows.length)return '<div class="empty"><b>Sıralama boş.</b><br>İlk oyuncular kayıt olunca burada görünecek.</div>'+rulesHtml();
-    var h='<div class="tablebox"><table><thead><tr><th>#</th><th>Oyuncu</th><th>Tam skor</th><th>Maç</th><th>Puan</th></tr></thead><tbody>';
+    var h='<div class="tablebox"><table><thead><tr><th>#</th><th>Oyuncu</th><th>Tam skor</th><th>Maç</th><th>FB</th><th>GS</th><th>BJK</th><th>Puan</th></tr></thead><tbody>';
     rows.forEach(function(r,i){
       var me=auth&&r.id===auth.id;
-      h+='<tr class="'+(me?"mine":"")+'"><td class="rank">'+(i<3&&r.pts>0?'<span class="medal m'+(i+1)+'">'+(i+1)+'</span>':(i+1))+'</td><td>'+esc(nameOf(r.id))+(me?' <span class="state">(sen)</span>':'')+'</td><td>'+r.exact+'</td><td>'+r.played+'</td><td class="total">'+r.pts+'</td></tr>';
+      h+='<tr class="'+(me?"mine":"")+'"><td class="rank">'+(i<3&&r.pts>0?'<span class="medal m'+(i+1)+'">'+(i+1)+'</span>':(i+1))+'</td><td>'+esc(nameOf(r.id))+(me?' <span class="state">(sen)</span>':'')+'</td><td>'+r.exact+'</td><td>'+r.played+'</td><td>'+r.fb+'</td><td>'+r.gs+'</td><td>'+r.bjk+'</td><td class="total">'+r.pts+'</td></tr>';
     });
     var note=liveCount?'<p class="state live"><span class="livebadge">● CANLI</span> '+liveCount+' maç sürüyor. Puanlar şimdiki skora göre hesaplanıyor, maç bitince kesinleşir.</p>':'';
     return note+h+'</tbody></table></div><p class="state">Bitmiş maç sayısı: '+doneCount+(liveCount?' · Canlı: '+liveCount:'')+'</p>'+rulesHtml();
