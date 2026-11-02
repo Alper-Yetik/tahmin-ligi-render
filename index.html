@@ -366,6 +366,14 @@ button.pill.pop{animation:rxpop .28s ease-out}
 #chatErr{min-height:1.1em;font-size:.78rem}
 
 @media (max-width:520px){
+  table.lb th,table.lb td{padding:10px 5px}
+  table.lb th:first-child,table.lb td:first-child{padding-left:8px}
+  table.lb th:last-child,table.lb td:last-child{padding-right:10px}
+  table.lb thead th{font-size:.62rem;letter-spacing:.04em}
+  table.lb .xs{display:none}
+  table.lb td.rank{font-size:1.05rem}
+  table.lb .medal{width:26px;height:26px;font-size:1rem}
+  table.lb td.total{font-size:1.35rem}
   body{padding-inline:14px}
   h1{font-size:1.75rem}
   .logo{width:40px;height:40px;border-radius:12px}
@@ -809,7 +817,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
     }).sort(function(a,b){return b.pts-a.pts||b.exact-a.exact||nameOf(a.id).localeCompare(nameOf(b.id),"tr")});
     var doneCount=matches.filter(finished).length, liveCount=matches.filter(isLive).length;
     if(!rows.length)return '<div class="empty"><b>Sıralama boş.</b><br>İlk oyuncular kayıt olunca burada görünecek.</div>'+rulesHtml();
-    var h='<div class="tablebox"><table><thead><tr><th>#</th><th>Oyuncu</th><th>Tam skor</th><th>Maç</th><th>FB</th><th>GS</th><th>BJK</th><th>Puan</th></tr></thead><tbody>';
+    var h='<div class="tablebox"><table class="lb"><thead><tr><th>#</th><th>Oyuncu</th><th>Tam<span class="xs"> skor</span></th><th>Maç</th><th>FB</th><th>GS</th><th>BJK</th><th>Puan</th></tr></thead><tbody>';
     rows.forEach(function(r,i){
       var me=auth&&r.id===auth.id;
       h+='<tr class="'+(me?"mine":"")+'"><td class="rank">'+(i<3&&r.pts>0?'<span class="medal m'+(i+1)+'">'+(i+1)+'</span>':(i+1))+'</td><td>'+esc(nameOf(r.id))+(me?' <span class="state">(sen)</span>':'')+'</td><td>'+r.exact+'</td><td>'+r.played+'</td><td>'+r.fb+'</td><td>'+r.gs+'</td><td>'+r.bjk+'</td><td class="total">'+r.pts+'</td></tr>';
