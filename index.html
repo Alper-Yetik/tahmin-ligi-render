@@ -809,9 +809,9 @@ button.pill.pop{animation:rxpop .28s ease-out}
         var p=preds[k];if(p.u!==id)return;var m=mm[p.m];if(!m)return;
         var s=score(p,m);if(s==null)return;
         r.pts+=s;r.played++;if(s===EXACT)r.exact++;
-        /* Takım puanı: maçta o takım varsa (derbide iki takıma da) yazılır. */
+        /* Takım puanı: derbide yalnız ev sahibine yazılır; böylece FB+GS+BJK toplamı genel puanı aşmaz. */
         var th=teamKey(m.home),ta=teamKey(m.away);
-        if(th)r[th]+=s;if(ta&&ta!==th)r[ta]+=s;
+        if(th)r[th]+=s;else if(ta)r[ta]+=s;
       });
       return r;
     }).sort(function(a,b){return b.pts-a.pts||b.exact-a.exact||nameOf(a.id).localeCompare(nameOf(b.id),"tr")});
