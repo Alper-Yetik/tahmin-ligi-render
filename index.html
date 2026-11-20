@@ -121,7 +121,7 @@ a.link{display:inline}
 .teamwrap.away{align-items:flex-end}
 .cards{display:flex;gap:10px;min-height:0}
 .cards:empty{display:none}
-.subtabs{display:flex;gap:8px}
+.subtabs{display:flex;gap:8px;margin:16px 0 14px}
 .subtab{flex:1;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:11px 14px;font-family:var(--display);font-size:1.05rem;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
 .subtab:hover{color:var(--ink)}
 .subtab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
@@ -134,8 +134,9 @@ a.link{display:inline}
 .livemin.ms{color:var(--muted)}
 .htl{font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .tlogo{width:26px;height:26px;object-fit:contain;flex:none}
+.clogo{width:16px;height:16px;object-fit:contain;flex:none}
 .slogo{width:20px;height:20px;object-fit:contain;vertical-align:-5px;margin-right:7px}
-@media (prefers-color-scheme: dark){.tlogo,.slogo{filter:drop-shadow(0 0 1px rgba(255,255,255,.55))}}
+@media (prefers-color-scheme: dark){.tlogo,.slogo,.clogo{filter:drop-shadow(0 0 1px rgba(255,255,255,.55))}}
 @media (max-width:520px){.tlogo{width:20px;height:20px}}
 
 .std th,.std td{padding:10px 9px}
@@ -457,6 +458,10 @@ td.total{font-size:1.3rem;font-weight:600}
   .teamchips{flex-wrap:nowrap;gap:4px}
   .teamchips .chip{flex:1 1 auto;justify-content:center;padding:6px 6px;font-size:.74rem;letter-spacing:-.01em;gap:4px;min-width:0;white-space:nowrap}
   .teamchips .dot{width:7px;height:7px}
+  .teamchips .clogo{width:14px;height:14px}
+  /* Telefonda logo adın üstünde: uzun adlar (Galatasaray) tahmin kutularının altına girmesin. */
+  .board .team{flex-direction:column;align-items:flex-start;gap:4px}
+  .board .team.away{flex-direction:column-reverse;align-items:flex-end}
   table.lb .medal{font-size:.85rem}
 }
 </style>
@@ -732,7 +737,7 @@ td.total{font-size:1.3rem;font-weight:600}
 
   function filterChips(){
     var h='<div class="chips teamchips"><button class="chip" data-filter="all" aria-pressed="'+(filter==="all")+'">Hepsi</button>';
-    TEAMS.forEach(function(t){h+='<button class="chip" data-filter="'+t.key+'" aria-pressed="'+(filter===t.key)+'"><span class="dot '+t.key+'"></span>'+t.name+'</button>'});
+    TEAMS.forEach(function(t){var u=logoUrl(t.name,48);h+='<button class="chip" data-filter="'+t.key+'" aria-pressed="'+(filter===t.key)+'">'+(u?'<img class="clogo" src="'+esc(u)+'" alt="" onerror="this.remove()">':'<span class="dot '+t.key+'"></span>')+t.name+'</button>'});
     return h+'</div>';
   }
   function rulesHtml(){
