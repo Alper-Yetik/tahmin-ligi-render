@@ -122,6 +122,7 @@ a.link{display:inline}
 .cards{display:flex;gap:10px;min-height:0}
 .cards:empty{display:none}
 .subtabs{display:flex;gap:8px;margin:16px 0 14px}
+.eurochips{margin-bottom:14px}
 .subtab{flex:1;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:11px 14px;font-family:var(--display);font-size:1.05rem;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
 .subtab:hover{color:var(--ink)}
 .subtab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
@@ -459,6 +460,7 @@ td.total{font-size:1.3rem;font-weight:600}
   .teamchips .chip{flex:1 1 auto;justify-content:center;padding:6px 6px;font-size:.74rem;letter-spacing:-.01em;gap:4px;min-width:0;white-space:nowrap}
   .teamchips .dot{width:7px;height:7px}
   .teamchips .clogo{width:14px;height:14px}
+  .eurochips .chip svg{width:13px;height:13px;flex:none}
   /* Telefonda logo adın üstünde: uzun adlar (Galatasaray) tahmin kutularının altına girmesin. */
   .board .team{flex-direction:column;align-items:flex-start;gap:4px}
   .board .team.away{flex-direction:column-reverse;align-items:flex-end}
@@ -913,7 +915,7 @@ td.total{font-size:1.3rem;font-weight:600}
   function standingsHtml(){
     var names={super:"Süper Lig",ucl:"Şampiyonlar Ligi",uel:"Avrupa Ligi",uecl:"Konferans Ligi"};
     var key=tab==="super"?"super":euro, h="";
-    if(tab==="euro")h+='<div class="chips">'+["ucl","uel","uecl"].map(function(k){return '<button class="chip" data-euro="'+k+'" aria-pressed="'+(euro===k)+'">'+EURO_ICO[k]+names[k]+'</button>'}).join("")+'</div>';
+    if(tab==="euro")h+='<div class="chips teamchips eurochips">'+["ucl","uel","uecl"].map(function(k){return '<button class="chip" data-euro="'+k+'" aria-pressed="'+(euro===k)+'">'+EURO_ICO[k]+names[k]+'</button>'}).join("")+'</div>';
     var compName=names[key], lm=matches.filter(function(m){return m.comp===compName&&isLive(m)});
     if(lm.length)h+='<div class="livebar">'+lm.map(function(m){return '<div class="liverow"><span class="livebadge">● '+liveLabel(m)+'</span> <b>'+esc(m.home)+' '+m.lh+' - '+m.la+' '+esc(m.away)+'</b> <span class="livemin">'+esc(liveMinute(m))+'</span>'+(m.lst==="live"&&m.ladd>0?' <span class="liveadd">Uzatma: '+m.ladd+' dk</span>':'')+'</div>'}).join("")+'</div>';
     var s=stand[key], rows=s&&Array.isArray(s.data)?s.data:[];
