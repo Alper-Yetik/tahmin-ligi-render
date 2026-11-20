@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Üçlü Tahmin Ligi</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tahmin Ligi">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -56,7 +62,13 @@ button{cursor:pointer}
 
 /* ---------- üst alan ---------- */
 .top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 16px}
-.brand{display:flex;align-items:center;gap:14px;min-width:0}
+.brand{display:flex;align-items:center;gap:14px;min-width:0;flex:1 1 auto}
+/* Yenile: ana ekrandan açılan uygulamada tarayıcının yenile tuşu yok. */
+.refresh{margin-left:auto;flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);background:var(--surface);color:var(--muted);box-shadow:var(--shadow)}
+.refresh:hover{color:var(--ink)}
+.refresh svg{width:19px;height:19px}
+.refresh.spin svg{animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 .logo{flex:none;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:var(--accent-ink);background:linear-gradient(140deg,var(--accent),var(--accent2));box-shadow:0 8px 20px rgba(37,99,235,.28)}
 .logo svg{width:28px;height:28px}
 h1{font-size:2.15rem;line-height:.95;letter-spacing:.015em;text-transform:uppercase;font-weight:500}
@@ -442,6 +454,9 @@ td.total{font-size:1.3rem;font-weight:600}
   .final{font-size:1.2rem}
   table.lb td.rank{font-size:.9rem}
   table.lb td.total{font-size:1.1rem}
+  .teamchips{flex-wrap:nowrap;gap:4px}
+  .teamchips .chip{flex:1 1 auto;justify-content:center;padding:6px 6px;font-size:.74rem;letter-spacing:-.01em;gap:4px;min-width:0;white-space:nowrap}
+  .teamchips .dot{width:7px;height:7px}
   table.lb .medal{font-size:.85rem}
 }
 </style>
@@ -455,6 +470,7 @@ td.total{font-size:1.3rem;font-weight:600}
         <h1>Üçlü Tahmin Ligi</h1>
         <p class="sub">Fenerbahçe, Galatasaray ve Beşiktaş: Lig ve Avrupa maçları</p>
       </div>
+      <button type="button" class="refresh" id="refreshBtn" aria-label="Sayfayı yenile" title="Yenile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
     </div>
     <div class="me" id="me" hidden></div>
   </header>
@@ -711,11 +727,11 @@ td.total{font-size:1.3rem;font-weight:600}
     if(!auth){me.hidden=true;return}
     me.hidden=false;
     var tg=tgLinked[auth.id]?'<span class="state ok">Telegram hatırlatması açık</span>':'<button class="link" data-action="tgLink">Telegram\'dan hatırlat</button><span class="state warn" id="tgMsg"></span>';
-    me.innerHTML='<span>Oynayan: <b>'+esc(auth.nick)+'</b></span> <button class="link" data-action="showPw">şifre değiştir</button> · <button class="link" data-action="signout">çıkış yap</button> · '+tg;
+    me.innerHTML='<span>Oynayan: <b>'+esc(auth.nick)+'</b></span> <button class="link" data-action="showPw">Şifre değiştir</button> · <button class="link" data-action="signout">Çıkış yap</button> · '+tg+pushHtml();
   }
 
   function filterChips(){
-    var h='<div class="chips"><button class="chip" data-filter="all" aria-pressed="'+(filter==="all")+'">Hepsi</button>';
+    var h='<div class="chips teamchips"><button class="chip" data-filter="all" aria-pressed="'+(filter==="all")+'">Hepsi</button>';
     TEAMS.forEach(function(t){h+='<button class="chip" data-filter="'+t.key+'" aria-pressed="'+(filter===t.key)+'"><span class="dot '+t.key+'"></span>'+t.name+'</button>'});
     return h+'</div>';
   }
@@ -805,6 +821,60 @@ td.total{font-size:1.3rem;font-weight:600}
     var badge=lv?'<span class="livebadge">● '+esc(liveLabel(m))+'</span> · ':'';
     return '<article class="match" data-match="'+esc(m.id)+'"><div class="meta"><span class="comp '+compCls(m.comp)+'">'+esc(m.comp)+'</span><span>'+badge+fmtDate(m.kickoff)+esc(closing)+'</span></div>'+
       '<div class="board">'+teamHtml(m.home,"",showCards?cardsHtml(m.hy,m.hr):undefined)+center+teamHtml(m.away,"away",showCards?cardsHtml(m.ay,m.ar):undefined)+'</div>'+(showCards?evsHtml(m):"")+foot+others+'</article>';
+  }
+
+  /* ---------- bildirimler: ana ekrana eklenen uygulamada sohbet mesajı gelince telefon bildirimi ---------- */
+  var VAPID_PUBLIC="BE2c5HnySqwhKsLd6eQZNeXrQ9ca3lbMx4-92soCLSXCzLepI6bvLS1xTog6ZoLTqJ0Qq8AIzgKFQY2UrAmaX4w";
+  var swReg=null, pushState="", pushBusy=false;  /* pushState: on, off, denied, ios-home, unsupported */
+  function isStandalone(){return (window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone===true}
+  function isIOS(){return /iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)}
+  function pushSupported(){return !!swReg&&"PushManager" in window&&"Notification" in window}
+  function b64u(t){t=t.replace(/-/g,"+").replace(/_/g,"/");while(t.length%4)t+="=";var r=atob(t),a=new Uint8Array(r.length);for(var i=0;i<r.length;i++)a[i]=r.charCodeAt(i);return a}
+  function pushHtml(){
+    if(pushState==="on")return ' · <span class="state ok">🔔 Bildirimler açık</span> <button class="link" data-action="pushOff">Kapat</button>';
+    if(pushState==="off")return ' · <button class="link" data-action="pushOn"'+(pushBusy?' disabled':'')+'>🔔 Bildirimleri aç</button>';
+    if(pushState==="denied")return ' · <span class="state warn">Bildirim izni kapalı: telefon ayarlarından bu uygulamaya izin ver</span>';
+    if(pushState==="ios-home")return ' · <span class="state">🔔 Bildirim için: Paylaş → Ana Ekrana Ekle, sonra ana ekrandan aç</span>';
+    return "";
+  }
+  async function pushInit(){
+    if("serviceWorker" in navigator){
+      try{swReg=await navigator.serviceWorker.register("/sw.js")}catch(e){swReg=null}
+      navigator.serviceWorker.addEventListener("message",function(e){if(e.data&&e.data.type==="openChat")setChatOpen(true)});
+    }
+    await pushRefresh();
+  }
+  function pushSave(sub){var j=sub.toJSON();return rpc("push_subscribe",{p_token:auth.token,p_endpoint:j.endpoint,p_p256dh:j.keys.p256dh,p_auth:j.keys.auth})}
+  /* Durumu okur; abonelik varsa giriş yapan oyuncuya bağlar (başka hesapla giriş yapılmış olabilir). */
+  async function pushRefresh(){
+    if(!pushSupported())pushState=isIOS()&&!isStandalone()?"ios-home":"unsupported";
+    else if(Notification.permission==="denied")pushState="denied";
+    else{
+      var sub=null;try{sub=await swReg.pushManager.getSubscription()}catch(e){}
+      pushState=sub&&Notification.permission==="granted"?"on":"off";
+      if(sub&&auth)pushSave(sub).catch(function(){});
+    }
+    renderHead();
+  }
+  async function pushOn(){
+    if(!pushSupported()||!auth||pushBusy)return;
+    pushBusy=true;renderHead();
+    try{
+      var perm=await Notification.requestPermission();
+      if(perm==="granted"){
+        var sub=await swReg.pushManager.getSubscription()||await swReg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID_PUBLIC)});
+        var r=await pushSave(sub);
+        pushState=r&&r.ok?"on":"off";
+      }else pushState=perm==="denied"?"denied":"off";
+    }catch(e){pushState="off"}
+    pushBusy=false;renderHead();
+  }
+  async function pushOff(tk){
+    tk=tk||(auth&&auth.token);
+    var sub=null;try{sub=swReg&&await swReg.pushManager.getSubscription()}catch(e){}
+    if(sub){if(tk)rpc("push_unsubscribe",{p_token:tk,p_endpoint:sub.endpoint}).catch(function(){});try{await sub.unsubscribe()}catch(e){}}
+    if(pushSupported()&&Notification.permission!=="denied")pushState="off";
+    renderHead();
   }
 
   /* ---------- puan durumları (Süper Lig, Avrupa kupaları) ---------- */
@@ -1667,7 +1737,7 @@ td.total{font-size:1.3rem;font-weight:600}
     try{
       var r=await rpc(rname,args);
       if(!r.ok)return fail(ERR[r.error]||"İşlem yapılamadı.");
-      auth={id:r.id,nick:r.nick,token:r.token};lsSet("tl_auth",auth);msg.textContent="";
+      auth={id:r.id,nick:r.nick,token:r.token};lsSet("tl_auth",auth);msg.textContent="";pushRefresh();
       el("loginPass").value="";el("loginPass2").value="";el("loginCode").value="";
       await load();render();
     }catch(err){return fail("Bağlantı hatası, tekrar dene.")}
@@ -1886,7 +1956,9 @@ td.total{font-size:1.3rem;font-weight:600}
     if(t.dataset.sub){sub=t.dataset.sub;render();return}
     if(t.dataset.filter){filter=t.dataset.filter;render();return}
     var a=t.dataset.action,m=t.dataset.m;
-    if(a==="sendChat")sendChat();
+    if(a==="pushOn")pushOn();
+    else if(a==="pushOff")pushOff();
+    else if(a==="sendChat")sendChat();
     else if(a==="pickImg"){var fi=el("chatFile");if(fi)fi.click()}
     else if(a==="pickCam"){if(window.matchMedia&&matchMedia("(pointer:coarse)").matches){var fc=el("chatCam");if(fc)fc.click()}else openWebcam()}
     else if(a==="clearImg")clearChatImg();
@@ -1911,7 +1983,7 @@ td.total{font-size:1.3rem;font-weight:600}
     else if(a==="editStart")editStart(m);
     else if(a==="editCancel")editCancel(m);
     else if(a==="editSave")editSave(m);
-    else if(a==="signout"){var tk=auth&&auth.token;auth=null;lsDel("tl_auth");chatFootKey="";el("pwbox").hidden=true;setMode("login");render();if(tk)rpc("member_logout",{p_token:tk}).catch(function(){})}
+    else if(a==="signout"){var tk=auth&&auth.token;if(pushState==="on")pushOff(tk);auth=null;lsDel("tl_auth");chatFootKey="";el("pwbox").hidden=true;setMode("login");render();if(tk)rpc("member_logout",{p_token:tk}).catch(function(){})}
     else if(a==="tgLink")tgLink();
     else if(a==="showPw"){el("pwbox").hidden=false;el("pwOld").focus()}
     else if(a==="resetPlayer")resetPlayer(t.dataset.id);
@@ -1956,6 +2028,7 @@ td.total{font-size:1.3rem;font-weight:600}
   /* iPhone Safari çimdikle yakınlaştırmayı bu olaylarla yapar. */
   ["gesturestart","gesturechange","gestureend"].forEach(function(n){document.addEventListener(n,function(e){e.preventDefault()},{passive:false})});
   if(window.visualViewport){visualViewport.addEventListener("resize",fitChat);visualViewport.addEventListener("scroll",fitChat)}
+  el("refreshBtn").addEventListener("click",function(){this.classList.add("spin");location.reload()});
   el("chatFab").addEventListener("click",function(){setChatOpen(!chatOpen)});
   el("chatClose").addEventListener("click",function(){setChatOpen(false);el("chatFab").focus()});
   document.addEventListener("keydown",function(e){if(e.key==="Escape"&&chatOpen){setChatOpen(false);el("chatFab").focus()}});
@@ -1979,6 +2052,8 @@ td.total{font-size:1.3rem;font-weight:600}
   var sa=ssGet("tl_admin");if(sa)adminPass=sa;
   setMode("login");
   render();
+  pushInit();
+  if(location.hash==="#sohbet"){try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}setTimeout(function(){setChatOpen(true)},300)}
   if(BASE&&KEY){
     load();loadChat();
     /* Kayıtlı oturum hâlâ geçerli mi? Değilse (süresi dolmuş, şifre sıfırlanmış) çıkış yaptır. */
