@@ -701,6 +701,8 @@ td.total{font-size:1.3rem;font-weight:600}
         prx={};(r[4]||[]).forEach(function(x){(prx[x.match_id+"_"+x.target_id]||(prx[x.match_id+"_"+x.target_id]=[])).push({rid:x.reactor_id,nick:x.nick,kind:x.kind})});
         loading=false;render();
       }
+      /* Kendi tahminlerin gelmediyse (istek başarısız) kısa süre sonra tekrar dene. */
+      if(auth&&r[5]===null)setTimeout(load,3000);
     }catch(e){
       loadError="Veriler yüklenemedi. İnternetini kontrol edip sayfayı yenile.";
       loading=false;render();
@@ -2051,6 +2053,18 @@ td.total{font-size:1.3rem;font-weight:600}
     if(BASE&&KEY&&!document.hidden&&!(a&&a.tagName==="INPUT"))load();
     setTimeout(tick,matches.some(isLive)?15000:30000);
   })();
+
+  /* Uygulama arka plandan dönünce (telefonda ana ekrandan yeniden açınca) beklemeden güncel veriyi çek. */
+  var lastWake=0;
+  function wake(){
+    if(document.hidden||!BASE||!KEY||Date.now()-lastWake<2000)return;
+    var ae=document.activeElement;
+    lastWake=Date.now();if(!(ae&&ae.tagName==="INPUT"))load();loadChat();
+  }
+  document.addEventListener("visibilitychange",wake);
+  window.addEventListener("pageshow",function(e){if(e.persisted)wake()});
+  window.addEventListener("focus",wake);
+  window.addEventListener("online",wake);
 
   /* ---------- başlangıç ---------- */
   var saved=lsGet("tl_auth");if(saved&&saved.id&&saved.nick&&saved.token)auth={id:saved.id,nick:saved.nick,token:saved.token};
