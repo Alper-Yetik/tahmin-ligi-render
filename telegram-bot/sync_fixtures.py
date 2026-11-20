@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fenerbahçe, Galatasaray ve Beşiktaş'ın yeni maçlarını ESPN'den çekip Supabase'e ekler.
 
+Yeni rakiplerin ESPN logo kimliğini de team_logos tablosuna yazar (sitede takım logosu için).
 Sadece maç ekler ve henüz skoru olmayan gelecekteki bir maçın saati (başka güne kaydırıldıysa günü de) değiştiyse günceller.
 Skorlara, silmeye ve oyuncu verisine dokunmaz. Yetkisi sınırlı otomasyon anahtarını kullanır.
 
@@ -143,6 +144,11 @@ def main():
             if c:
                 by_slot[(c, day_key(k))] = m
 
+    try:
+        known_logos = {r["name"] for r in http_json(cfg["supabase_url"] + "/rest/v1/team_logos?select=name", headers=sb_headers)}
+    except Exception:
+        known_logos = None  # logos.sql henüz çalıştırılmamış: logo adımı atlanır
+
     now = datetime.datetime.now(datetime.timezone.utc)
     limit = now + datetime.timedelta(days=WINDOW_DAYS)
     seen = set()
@@ -174,6 +180,21 @@ def main():
             clubs = [c for c in (club_of(home), club_of(away)) if c]
             if not clubs:
                 continue
+            if known_logos is not None:
+                team_ids = {c["homeAway"]: str(c["team"].get("id") or "") for c in comp["competitors"]}
+                for name, side in ((home, "home"), (away, "away")):
+                    if name in known_logos or not team_ids.get(side, "").isdigit():
+                        continue
+                    known_logos.add(name)
+                    log("logo eklenecek: %s (ESPN %s)" % (name, team_ids[side]))
+                    if not dry:
+                        try:
+                            r = http_json(cfg["supabase_url"] + "/rest/v1/rpc/bot_upsert_logo", {
+                                "p_secret": cfg["bot_secret"], "p_name": name, "p_espn_id": team_ids[side]}, sb_headers)
+                            if not (r and r.get("ok")):
+                                log("logo reddedildi: %s" % r)
+                        except Exception as e:
+                            log("logo yazılamadı (%s): %s" % (name, type(e).__name__))
             slots = [(c, day_key(kick)) for c in clubs]
             if any(s in seen for s in slots):
                 continue  # derbi: diğer takımın programında zaten işlendi

@@ -144,6 +144,13 @@ a.link{display:inline}
 .mdstate.live{color:var(--bad)}
 .mdsub{font-size:.8rem;color:var(--muted);text-align:center}
 .mdht{font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.htl{font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tlogo{width:26px;height:26px;object-fit:contain;flex:none}
+.crest{position:relative;overflow:hidden}
+.crest.haslogo{background:#fff;border:1px solid var(--line);color:transparent;text-shadow:none}
+.crest img{position:absolute;inset:9px;width:calc(100% - 18px);height:calc(100% - 18px);object-fit:contain}
+@media (prefers-color-scheme: dark){.tlogo{filter:drop-shadow(0 0 1px rgba(255,255,255,.55))}}
+@media (max-width:520px){.tlogo{width:20px;height:20px}.crest img{inset:6px;width:calc(100% - 12px);height:calc(100% - 12px)}}
 .mdtabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin-top:4px}
 .mdtab{background:none;border:0;border-bottom:3px solid transparent;padding:10px 2px;font-size:.95rem;font-weight:500;color:var(--muted)}
 .mdtab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:500}
@@ -605,7 +612,7 @@ td.total{font-size:1.3rem;font-weight:600}
   var BOT="uclu_tahmin_bot", tgLinked={};
   var matches=[], preds={}, players={}, lastSig="", prx={};
   var stand={}, standAt=0, standBusy=false, standSig="", euro="ucl";
-  var tab="matches", detail=null, dtab="preds", filter="all", sub="up", drafts={}, flash={}, editing={}, pendingDelete=null;
+  var logos={}, tab="matches", detail=null, dtab="preds", filter="all", sub="up", drafts={}, flash={}, editing={}, pendingDelete=null;
   var el=function(id){return document.getElementById(id)};
   var isAdmin=function(){return !!adminPass};
 
@@ -630,9 +637,12 @@ td.total{font-size:1.3rem;font-weight:600}
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
   function teamKey(n){var t=TEAMS.find(function(t){return t.name.toLowerCase()===String(n).trim().toLowerCase()});return t?t.key:""}
   /* cards verilirse (boş metin de olabilir) takım adının üstüne kart satırı konur. */
+  /* ESPN takım logosu (team_logos tablosu); yoksa boş döner ve renkli nokta / baş harfler kullanılır. */
+  function logoUrl(n,px){var id=logos[String(n).trim().toLowerCase()];return id?"https://a.espncdn.com/combiner/i?img=/i/teamlogos/soccer/500/"+id+".png&h="+px+"&w="+px:""}
   function teamHtml(n,cls,cards){
-    var k=teamKey(n);
-    var inner='<div class="team '+(cls||"")+'">'+(cls==="away"?esc(n)+'<span class="dot '+k+'"></span>':'<span class="dot '+k+'"></span>'+esc(n))+'</div>';
+    var k=teamKey(n), u=logoUrl(n,64);
+    var mark=u?'<img class="tlogo" src="'+esc(u)+'" alt="" loading="lazy" onerror="this.remove()">':'<span class="dot '+k+'"></span>';
+    var inner='<div class="team '+(cls||"")+'">'+(cls==="away"?esc(n)+mark:mark+esc(n))+'</div>';
     if(cards===undefined)return inner;
     return '<div class="teamwrap '+(cls||"")+'"><div class="cards">'+cards+'</div>'+inner+'</div>';
   }
@@ -701,7 +711,8 @@ td.total{font-size:1.3rem;font-weight:600}
         sb("/rest/v1/players_public?select=*"),
         sb("/rest/v1/players_telegram?select=player_id").catch(function(){return []}),
         sb("/rest/v1/prediction_reactions_public?select=*").catch(function(){return []}),
-        auth?rpc("my_predictions",{p_token:auth.token}).catch(function(){return null}):Promise.resolve(null)
+        auth?rpc("my_predictions",{p_token:auth.token}).catch(function(){return null}):Promise.resolve(null),
+        sb("/rest/v1/team_logos?select=name,espn_id").catch(function(){return []})
       ]);
       var sig=JSON.stringify(r);
       loadError="";
@@ -712,6 +723,7 @@ td.total{font-size:1.3rem;font-weight:600}
         /* Kendi tahminlerin kapanıştan önce de tam görünür; başkalarınınki kapanışa kadar gizli (hid). */
         if(auth&&r[5]&&r[5].ok)r[5].items.forEach(function(x){preds[x.match_id+"_"+auth.id]={m:x.match_id,u:auth.id,h:x.h,a:x.a,ed:!!x.edited,ph:x.prev_h,pa:x.prev_a,hid:false}});
         players={};r[2].forEach(function(x){players[x.id]=x.nick});
+        logos={};(r[6]||[]).forEach(function(x){if(/^\d{1,9}$/.test(x.espn_id))logos[String(x.name).trim().toLowerCase()]=x.espn_id});
         tgLinked={};r[3].forEach(function(x){tgLinked[x.player_id]=1});
         prx={};(r[4]||[]).forEach(function(x){(prx[x.match_id+"_"+x.target_id]||(prx[x.match_id+"_"+x.target_id]=[])).push({rid:x.reactor_id,nick:x.nick,kind:x.kind})});
         loading=false;render();
@@ -785,6 +797,7 @@ td.total{font-size:1.3rem;font-weight:600}
     return h+rulesHtml();
   }
 
+  function htTxt(m,pre){return typeof m.hth==="number"&&typeof m.hta==="number"?pre+"İY "+m.hth+"-"+m.hta:""}
   var PARTS={};
   function matchCard(m,_i,_arr,mode){
     var mine=auth?predFor(m.id,auth.id):null, locked=closed(m)||!auth||(!!mine&&!editing[m.id]), fin=finished(m), lv=isLive(m), pv=provisional(m);
@@ -792,11 +805,11 @@ td.total{font-size:1.3rem;font-weight:600}
     var hv=d.h!==undefined?d.h:(mine?mine.h:""), av=d.a!==undefined?d.a:(mine?mine.a:"");
     var center;
     if(fin){
-      center='<div class="score livecol"><span class="final">'+m.hs+' - '+m.as+'</span><span class="livemin ms">MS</span></div>';
+      center='<div class="score livecol"><span class="final">'+m.hs+' - '+m.as+'</span><span class="livemin ms">MS'+htTxt(m," · ")+'</span></div>';
     } else if(pv){
-      center='<div class="score livecol"><span class="final">'+m.lh+' - '+m.la+'</span><span class="livemin">MS · kesinleşmedi</span></div>';
+      center='<div class="score livecol"><span class="final">'+m.lh+' - '+m.la+'</span><span class="livemin">MS · kesinleşmedi</span>'+(htTxt(m,"")?'<span class="htl">'+htTxt(m,"")+'</span>':'')+'</div>';
     } else if(lv){
-      center='<div class="score livecol"><span class="final livefinal">'+m.lh+' - '+m.la+'</span><span class="livemin">'+esc(liveMinute(m))+'</span>'+(m.lst==="live"&&m.ladd>0?'<span class="liveadd">Uzatma: '+m.ladd+' dk</span>':'')+'</div>';
+      center='<div class="score livecol"><span class="final livefinal">'+m.lh+' - '+m.la+'</span><span class="livemin">'+esc(liveMinute(m))+'</span>'+(m.lst==="live"&&m.ladd>0?'<span class="liveadd">Uzatma: '+m.ladd+' dk</span>':'')+(m.lst==="live"&&htTxt(m,"")?'<span class="htl">'+htTxt(m,"")+'</span>':'')+'</div>';
     } else {
       center='<div class="score"><input id="h_'+esc(m.id)+'" data-m="'+esc(m.id)+'" data-side="h" type="number" inputmode="numeric" min="0" max="30" value="'+esc(hv)+'" '+(locked?"disabled":"")+' aria-label="'+esc(m.home)+' gol tahmini">'+
         '<span>-</span><input id="a_'+esc(m.id)+'" data-m="'+esc(m.id)+'" data-side="a" type="number" inputmode="numeric" min="0" max="30" value="'+esc(av)+'" '+(locked?"disabled":"")+' aria-label="'+esc(m.away)+' gol tahmini"></div>';
@@ -850,7 +863,8 @@ td.total{font-size:1.3rem;font-weight:600}
   function crestHtml(n){
     var k=teamKey(n), w=String(n).replace(/\b(FK|SK|SFK|FC|AS|AC|CF|JK)\b/g,"").trim().split(/\s+/).filter(Boolean);
     var ini=k?{fb:"FB",gs:"GS",bjk:"BJK"}[k]:(w.length>1?w[0][0]+w[1][0]:(w[0]||"?").slice(0,3)).toUpperCase();
-    return '<span class="crest '+k+'" aria-hidden="true">'+esc(ini)+'</span>';
+    var u=logoUrl(n,160);
+    return '<span class="crest '+k+(u?' haslogo':'')+'" aria-hidden="true">'+esc(ini)+(u?'<img src="'+esc(u)+'" alt="" onerror="this.parentNode.classList.remove(\'haslogo\');this.remove()">':'')+'</span>';
   }
   function fmtLong(ms){
     try{return new Date(ms).toLocaleString("tr-TR",{timeZone:"Europe/Istanbul",day:"numeric",month:"long",weekday:"long"})+' · '+fmtTime(ms)}catch(e){return fmtDate(ms)}
