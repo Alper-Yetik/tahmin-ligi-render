@@ -8,11 +8,9 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
   auth: { persistSession: false },
 });
-webpush.setVapidDetails(
-  "https://tahmin-ligi-render.onrender.com",
-  Deno.env.get("VAPID_PUBLIC_KEY")!,
-  Deno.env.get("VAPID_PRIVATE_KEY")!,
-);
+const VAPID_PUBLIC = Deno.env.get("VAPID_PUBLIC_KEY") || "";
+const VAPID_PRIVATE = Deno.env.get("VAPID_PRIVATE_KEY") || "";
+if (VAPID_PUBLIC && VAPID_PRIVATE) webpush.setVapidDetails("https://tahmin-ligi-render.onrender.com", VAPID_PUBLIC, VAPID_PRIVATE);
 
 // deno-lint-ignore no-explicit-any
 function text(m: any): string {
@@ -25,6 +23,8 @@ function text(m: any): string {
 
 Deno.serve(async () => {
   const { data: msgs, error } = await sb.rpc("push_claim");
+  // Gizliler henüz girilmediyse mesajları işaretleyip çık (sonradan eski mesajlar topluca gitmesin).
+  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return Response.json({ ok: false, error: "vapid_missing" }, { status: 500 });
   if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
   if (!msgs || !msgs.length) return Response.json({ ok: true, sent: 0 });
 
