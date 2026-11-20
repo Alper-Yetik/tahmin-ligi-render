@@ -89,7 +89,7 @@ def stat(stats, name):
 
 
 def parse(data):
-    """ESPN puan durumunu sıralı satırlara çevirir: {r,t,o,w,d,l,gf,ga,gd,p,c,n} (+ iç kullanım için _i = takım kimliği)."""
+    """ESPN puan durumunu sıralı satırlara çevirir: {r,t,o,w,d,l,gf,ga,gd,p,c,n} (+ _i = takım kimliği; sitede "i" olarak yazılır)."""
     rows = []
     for child in data.get("children") or []:
         for e in (child.get("standings") or {}).get("entries") or []:
@@ -205,7 +205,14 @@ def overlay(rows, events, base, now):
 
 
 def public(rows):
-    return [{k: v for k, v in r.items() if not k.startswith("_")} for r in rows]
+    """İç alanları atar; ESPN takım kimliğini "i" olarak bırakır (sitede takım logosu için)."""
+    out = []
+    for r in rows:
+        o = {k: v for k, v in r.items() if not k.startswith("_")}
+        if str(r.get("_i") or "").isdigit():
+            o["i"] = r["_i"]
+        out.append(o)
+    return out
 
 
 class State:
