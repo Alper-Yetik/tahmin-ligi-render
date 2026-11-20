@@ -7,29 +7,29 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Düzen: tek sütun, geniş boşluklar. Üstte marka ve sekmeler, ortada maç kartları ya da sıralama,
-   sağ altta yuvarlak sohbet düğmesi. Palet: gece sahası yeşili, altın puan vurgusu. */
+   sağ altta yuvarlak sohbet düğmesi. Palet: gece mavisi, altın puan vurgusu. Yazı tipi: Inter. */
 :root{
   color-scheme:light;
-  --bg:#edf1ef; --glow1:rgba(18,184,134,.16); --glow2:rgba(20,120,200,.08);
-  --surface:#ffffff; --surface2:#f4f7f5; --ink:#0b1710; --muted:#5a6b62; --line:#dfe7e2;
-  --accent:#0b8a57; --accent2:#12b886; --accent-ink:#ffffff; --accent-soft:rgba(11,138,87,.10);
-  --gold:#a86d00; --gold-bg:#fff1cc; --bad:#d23b2e; --win:#1b8a4b; --field:#f3f6f4;
+  --bg:#f3f5fa; --glow1:rgba(37,99,235,.10); --glow2:rgba(14,165,233,.08);
+  --surface:#ffffff; --surface2:#f6f8fc; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+  --accent:#2563eb; --accent2:#0ea5e9; --accent-ink:#ffffff; --accent-soft:rgba(37,99,235,.10);
+  --gold:#a86d00; --gold-bg:#fff1cc; --bad:#dc2626; --win:#16a34a; --field:#f3f6fb;
   --fb:#1b2a6b; --gs:#c4161c; --bjk:#111111;
-  --shadow:0 1px 2px rgba(10,30,20,.05),0 10px 30px rgba(10,30,20,.07);
-  --shadow-lg:0 24px 60px rgba(10,30,20,.28);
-  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
-  --body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --shadow:0 1px 2px rgba(15,23,42,.05),0 10px 30px rgba(15,23,42,.07);
+  --shadow-lg:0 24px 60px rgba(15,23,42,.28);
+  --display:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 @media (prefers-color-scheme: dark){
   :root{
     color-scheme:dark;
-    --bg:#070f0b; --glow1:rgba(47,209,140,.13); --glow2:rgba(60,120,255,.08);
-    --surface:#0e1812; --surface2:#131f19; --ink:#e9f2ed; --muted:#8da298; --line:#1d2c24;
-    --accent:#2fd18c; --accent2:#19b6a0; --accent-ink:#04140c; --accent-soft:rgba(47,209,140,.12);
-    --gold:#f2c14e; --gold-bg:#33290f; --bad:#ff6b5e; --win:#4ade80; --field:#0b130f;
+    --bg:#0a0f1c; --glow1:rgba(59,130,246,.14); --glow2:rgba(14,165,233,.08);
+    --surface:#111827; --surface2:#162033; --ink:#e6ecf5; --muted:#8b9ab0; --line:#1f2a3d;
+    --accent:#60a5fa; --accent2:#38bdf8; --accent-ink:#06101f; --accent-soft:rgba(96,165,250,.14);
+    --gold:#f2c14e; --gold-bg:#33290f; --bad:#f87171; --win:#4ade80; --field:#0d1424;
     --fb:#7d92ff; --gs:#ff5a60; --bjk:#dedede;
     --shadow:0 1px 0 rgba(255,255,255,.03) inset,0 12px 32px rgba(0,0,0,.40);
     --shadow-lg:0 24px 70px rgba(0,0,0,.6);
@@ -57,7 +57,7 @@ button{cursor:pointer}
 /* ---------- üst alan ---------- */
 .top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 16px}
 .brand{display:flex;align-items:center;gap:14px;min-width:0}
-.logo{flex:none;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:var(--accent-ink);background:linear-gradient(140deg,var(--accent),var(--accent2));box-shadow:0 8px 20px rgba(18,184,134,.28)}
+.logo{flex:none;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:var(--accent-ink);background:linear-gradient(140deg,var(--accent),var(--accent2));box-shadow:0 8px 20px rgba(37,99,235,.28)}
 .logo svg{width:28px;height:28px}
 h1{font-size:2.15rem;line-height:.95;letter-spacing:.015em;text-transform:uppercase;font-weight:700}
 .me{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;font-size:.85rem;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px;box-shadow:var(--shadow)}
@@ -69,7 +69,7 @@ a.link{display:inline}
 .tabs{display:flex;gap:4px;padding:5px;background:var(--surface);border:1px solid var(--line);border-radius:999px;box-shadow:var(--shadow);align-self:flex-start;max-width:100%;overflow-x:auto}
 .tab{background:none;border:0;padding:9px 20px;border-radius:999px;font-family:var(--display);font-size:1.12rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
 .tab:hover{color:var(--ink)}
-.tab[aria-selected="true"]{color:var(--accent-ink);background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 6px 16px rgba(18,184,134,.28)}
+.tab[aria-selected="true"]{color:var(--accent-ink);background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 6px 16px rgba(37,99,235,.28)}
 
 /* ---------- filtre ---------- */
 .chips{display:flex;flex-wrap:wrap;gap:8px}
@@ -143,6 +143,7 @@ a.link{display:inline}
 .mdstate{font-size:.78rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .mdstate.live{color:var(--bad)}
 .mdsub{font-size:.8rem;color:var(--muted);text-align:center}
+.mdht{font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums}
 .mdtabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin-top:4px}
 .mdtab{background:none;border:0;border-bottom:3px solid transparent;padding:10px 2px;font-size:.95rem;font-weight:600;color:var(--muted)}
 .mdtab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:700}
@@ -189,7 +190,7 @@ p.state.live{margin:0}
 .foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;min-height:38px;border-top:1px solid var(--line);padding-top:12px}
 .state{font-size:.86rem;color:var(--muted)}
 .state.ok{color:var(--accent);font-weight:600} .state.warn{color:var(--bad);font-weight:600}
-.btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--accent-ink);border:0;border-radius:12px;padding:10px 20px;font-weight:700;box-shadow:0 6px 16px rgba(18,184,134,.25)}
+.btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--accent-ink);border:0;border-radius:12px;padding:10px 20px;font-weight:700;box-shadow:0 6px 16px rgba(37,99,235,.25)}
 .btn:hover:not(:disabled){filter:brightness(1.06)}
 .btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
 .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);box-shadow:none}
@@ -251,7 +252,7 @@ label input:focus,label select:focus{border-color:var(--accent);outline:none;box
 [hidden]{display:none!important}
 
 /* ---------- sağ alttaki sohbet ---------- */
-.chatfab{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:calc(18px + env(safe-area-inset-bottom));width:62px;height:62px;border-radius:50%;border:0;display:grid;place-items:center;color:var(--accent-ink);background:linear-gradient(140deg,var(--accent),var(--accent2));box-shadow:0 14px 34px rgba(18,184,134,.42),0 2px 6px rgba(0,0,0,.25);z-index:60}
+.chatfab{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:calc(18px + env(safe-area-inset-bottom));width:62px;height:62px;border-radius:50%;border:0;display:grid;place-items:center;color:var(--accent-ink);background:linear-gradient(140deg,var(--accent),var(--accent2));box-shadow:0 14px 34px rgba(37,99,235,.42),0 2px 6px rgba(0,0,0,.25);z-index:60}
 .chatfab:hover{transform:translateY(-2px) scale(1.03)}
 .chatfab svg{width:28px;height:28px;grid-area:1/1}
 .chatfab .i-close{display:none}
@@ -431,6 +432,50 @@ button.pill.pop{animation:rxpop .28s ease-out}
   .chatpanel{animation:pop .18s ease-out}
   @keyframes pulse{50%{opacity:.45}}
   @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+}
+/* Inter yazı tipi için boyut ayarları (eski dar yazı tipine göre yazılmış kuralları ezer). */
+h1{font-size:1.7rem;letter-spacing:-.01em;line-height:1.05}
+.tab{font-size:.92rem;letter-spacing:.01em;font-weight:700}
+.subtab{font-size:.85rem;letter-spacing:.02em}
+.sec{font-size:.85rem;letter-spacing:.1em}
+.team{font-size:1.15rem;letter-spacing:-.01em}
+.score,.score input{font-size:1.35rem}
+.final{font-size:1.35rem;letter-spacing:.02em}
+.livemin{font-size:.85rem;letter-spacing:.02em}
+.mdteam b{font-size:1.25rem;letter-spacing:-.01em}
+.mdscore{font-size:3rem;font-weight:800;letter-spacing:-.02em}
+.mdscore.time{font-size:2.3rem}
+.crest{font-size:1.05rem;letter-spacing:0}
+.pill b{font-size:.92rem}
+.pts{font-size:.85rem}
+.std td.sp{font-size:1.05rem}
+td.rank{font-size:1rem}
+td.total{font-size:1.3rem;font-weight:800}
+.medal{font-size:.95rem}
+.rules div b{font-size:.95rem}
+.code{font-size:1.7rem;letter-spacing:.1em}
+.chathead b{font-size:1.1rem;letter-spacing:.02em}
+.msg .who{font-size:.88rem;letter-spacing:0}
+.rx b,.rxtabs b{font-size:.82rem}
+.qt b,.pq b,.chatreply b{font-size:.8rem;letter-spacing:0}
+.emojiti{font-size:.92rem;letter-spacing:.02em}
+.cd{font-size:.88rem}
+@media (max-width:520px){
+  h1{font-size:1.4rem}
+  .tab{font-size:.78rem;padding:8px 9px;letter-spacing:0}
+  .std{font-size:.8rem}
+  .std th,.std td{padding:9px 4px}
+  .std td.sp{font-size:.95rem}
+  .team{font-size:.9rem}
+  .score input{font-size:1.2rem}
+  .final{font-size:1.2rem}
+  .mdteam b{font-size:.98rem}
+  .mdscore{font-size:2.3rem}
+  .mdscore.time{font-size:1.8rem}
+  .crest{font-size:.85rem}
+  table.lb td.rank{font-size:.9rem}
+  table.lb td.total{font-size:1.1rem}
+  table.lb .medal{font-size:.85rem}
 }
 </style>
 </head>
@@ -654,7 +699,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
       loadError="";
       if(sig!==lastSig||loading){
         lastSig=sig;
-        matches=r[0].map(function(x){return {id:x.id,home:x.home,away:x.away,comp:x.comp,kickoff:Date.parse(x.kickoff),hs:x.home_score,as:x.away_score,lh:x.live_home,la:x.live_away,lmin:x.live_minute,lst:x.live_state,lupd:x.live_updated?Date.parse(x.live_updated):0,ladd:x.live_added,hy:x.home_yellow,hr:x.home_red,ay:x.away_yellow,ar:x.away_red,ev:Array.isArray(x.live_events)?x.live_events:[]}});
+        matches=r[0].map(function(x){return {id:x.id,home:x.home,away:x.away,comp:x.comp,kickoff:Date.parse(x.kickoff),hs:x.home_score,as:x.away_score,lh:x.live_home,la:x.live_away,hth:x.ht_home,hta:x.ht_away,lmin:x.live_minute,lst:x.live_state,lupd:x.live_updated?Date.parse(x.live_updated):0,ladd:x.live_added,hy:x.home_yellow,hr:x.home_red,ay:x.away_yellow,ar:x.away_red,ev:Array.isArray(x.live_events)?x.live_events:[]}});
         preds={};r[1].forEach(function(x){preds[x.match_id+"_"+x.player_id]={m:x.match_id,u:x.player_id,h:x.h,a:x.a,ed:!!x.edited,ph:x.prev_h,pa:x.prev_a,hid:!x.revealed}});
         /* Kendi tahminlerin kapanıştan önce de tam görünür; başkalarınınki kapanışa kadar gizli (hid). */
         if(auth&&r[5]&&r[5].ok)r[5].items.forEach(function(x){preds[x.match_id+"_"+auth.id]={m:x.match_id,u:auth.id,h:x.h,a:x.a,ed:!!x.edited,ph:x.prev_h,pa:x.prev_a,hid:false}});
@@ -814,6 +859,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
     else if(started(m)){sc='<div class="mdscore time">'+fmtTime(m.kickoff)+'</div>';st='<div class="mdstate">Sonuç bekleniyor</div>'}
     else{sc='<div class="mdscore time">'+fmtTime(m.kickoff)+'</div>';st='<div class="mdstate">'+(closed(m)?'Tahminler kapandı':'Tahmin açık')+'</div>';sub=closed(m)?'Başlamasına '+leftTxt(m.kickoff-Date.now()):'Kapanışa '+leftTxt(m.kickoff-LOCK_MS-Date.now())}
     if(mine&&(fin||lv||pv))sub='Tahminin '+mine.h+'-'+mine.a+' · +'+score(mine,m)+(lv?' şimdilik':'');
+    var ht=(fin||pv||(lv&&m.lst!=="ht"))&&typeof m.hth==="number"&&typeof m.hta==="number"?'<div class="mdht">İY '+m.hth+'–'+m.hta+'</div>':'';
     var showCards=fin||lv||pv;
     function side(n,role,y,r){return '<div class="mdteam">'+crestHtml(n)+'<b>'+esc(n)+'</b><span class="role">'+role+'</span>'+(showCards?'<div class="cards">'+cardsHtml(y,r)+'</div>':'')+'</div>'}
     var foot=['Tahmin giren: '+countPreds(m.id)+' kişi'];
@@ -821,7 +867,7 @@ button.pill.pop{animation:rxpop .28s ease-out}
     if(m.lupd)foot.push('Kaynak: ESPN','Güncelleme: '+agoTxt(m.lupd));
     var h='<button type="button" class="mdback" data-action="closeMatch">← Tüm maçlar</button>'+
       '<article class="mdcard"><div class="mdhead"><span>'+esc(m.comp)+' · '+seasonOf(m.kickoff)+'</span><span class="r">'+esc(fmtLong(m.kickoff))+'</span></div>'+
-      '<div class="mdboard">'+side(m.home,"Ev sahibi",m.hy,m.hr)+'<div class="mdmid">'+sc+st+(sub?'<div class="mdsub">'+esc(sub)+'</div>':'')+'</div>'+side(m.away,"Deplasman",m.ay,m.ar)+'</div>'+
+      '<div class="mdboard">'+side(m.home,"Ev sahibi",m.hy,m.hr)+'<div class="mdmid">'+sc+st+ht+(sub?'<div class="mdsub">'+esc(sub)+'</div>':'')+'</div>'+side(m.away,"Deplasman",m.ay,m.ar)+'</div>'+
       '<div class="mdfoot">'+foot.map(function(x){return '<span>'+esc(x)+'</span>'}).join("")+'</div></article>';
     var hasEv=m.ev&&m.ev.length;
     if(dtab==="events"&&!hasEv)dtab="preds";
