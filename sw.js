@@ -15,13 +15,16 @@ self.addEventListener("push", function (e) {
   }));
 });
 
-/* Bildirime dokununca: açık pencere varsa öne getirip sohbeti açar, yoksa siteyi sohbet açık başlatır. */
+/* Bildirime dokununca: açık pencere varsa öne getirir (sohbet bildirimiyse sohbeti de açar), yoksa siteyi bildirimin adresiyle başlatır. */
 self.addEventListener("notificationclick", function (e) {
   e.notification.close();
   var url = (e.notification.data && e.notification.data.url) || "/#sohbet";
   e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (list) {
     for (var i = 0; i < list.length; i++) {
-      if ("focus" in list[i]) { list[i].postMessage({ type: "openChat" }); return list[i].focus(); }
+      if ("focus" in list[i]) {
+        if (url.indexOf("#sohbet") >= 0) list[i].postMessage({ type: "openChat" });
+        return list[i].focus();
+      }
     }
     return self.clients.openWindow(url);
   }));
